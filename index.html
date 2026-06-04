@@ -76,11 +76,10 @@ header {
 .toolbar {
   background: var(--panel);
   border-bottom: 1px solid var(--border);
-  padding: .65rem 1.5rem;
+  padding: .6rem 1.5rem;
   display: flex;
   align-items: center;
-  gap: .75rem;
-  flex-wrap: wrap;
+  gap: 1.2rem;
   position: sticky;
   top: var(--header-h);
   z-index: 30;
@@ -91,29 +90,82 @@ header {
   color: var(--brown);
   font-style: italic;
   flex-shrink: 0;
+  padding-right: 1.2rem;
+  border-right: 1px solid var(--border);
 }
 .toolbar-spacer { flex: 1; }
 
-/* Filter pills */
-.filter-group { display: flex; gap: .35rem; align-items: center; }
-.filter-pill {
-  padding: .3rem .85rem;
-  border-radius: 20px;
+/* Filter segments — two labelled groups side by side */
+.filter-segment {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--warm-white);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.filter-segment-label {
+  font-size: .6rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+  padding: 0 .6rem;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  user-select: none;
+}
+.seg-btn {
+  padding: .32rem .75rem;
   font-size: .72rem;
   font-weight: 700;
-  letter-spacing: .05em;
+  letter-spacing: .04em;
   text-transform: uppercase;
-  border: 1px solid var(--border);
-  background: var(--warm-white);
+  border: none;
+  border-right: 1px solid var(--border);
+  background: transparent;
   color: var(--muted);
   cursor: pointer;
-  transition: all .15s;
+  transition: background .12s, color .12s;
   white-space: nowrap;
+  line-height: 1.8;
 }
-.filter-pill:hover { background: var(--light-brown); color: var(--brown); }
-.filter-pill.active { background: var(--ink); color: var(--cream); border-color: var(--ink); }
-.filter-pill.active.open  { background: var(--rust); border-color: var(--rust); }
-.filter-pill.active.solved { background: var(--success); border-color: var(--success); }
+.seg-btn:last-child { border-right: none; }
+.seg-btn:hover { background: var(--light-brown); color: var(--brown); }
+.seg-btn.active { background: var(--ink); color: var(--cream); }
+.seg-btn.active.s-open   { background: var(--rust); }
+.seg-btn.active.s-solved { background: var(--success); }
+
+/* ── FAB ───────────────────────────────────────── */
+.fab {
+  position: fixed;
+  bottom: 1.8rem;
+  right: 1.8rem;
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: var(--rust);
+  color: #fff;
+  border: none;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(192,87,26,.45);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, transform .15s, box-shadow .15s;
+  z-index: 50;
+}
+.fab:hover {
+  background: #a04415;
+  transform: scale(1.07);
+  box-shadow: 0 6px 20px rgba(192,87,26,.55);
+}
+.fab:active { transform: scale(.96); }
 
 /* ── MAIN ──────────────────────────────────────── */
 .main {
@@ -456,11 +508,12 @@ header {
 /* ── MOBILE ────────────────────────────────────── */
 @media (max-width: 600px) {
   header { padding: 0 1rem; }
-  .toolbar { padding: .6rem 1rem; }
+  .toolbar { padding: .6rem 1rem; gap: .6rem; flex-wrap: wrap; }
   .main { padding: 1rem; }
   .brand-title { font-size: 1.15rem; }
   .task-card { grid-template-columns: auto 1fr; }
   .task-actions { grid-column: 2; justify-content: flex-start; margin-top: .3rem; }
+  .fab { bottom: 1.2rem; right: 1.2rem; width: 48px; height: 48px; font-size: 1.4rem; }
 }
 
 /* ── LOADING ───────────────────────────────────── */
@@ -550,7 +603,6 @@ header {
   <div class="header-right">
     <span class="sync-dot" id="syncDot"></span>
     <span class="sync-label" id="syncLabel">Connecting…</span>
-    <button class="btn btn-primary" onclick="openAddModal()">+ Add Task</button>
   </div>
 </header>
 
@@ -558,16 +610,22 @@ header {
 <div class="toolbar">
   <div class="toolbar-date" id="todayLabel"></div>
   <div class="toolbar-spacer"></div>
-  <div class="filter-group">
-    <button class="filter-pill active" id="filterAll" onclick="setFilter('all')">All</button>
-    <button class="filter-pill open" id="filterOpen" onclick="setFilter('open')">Open</button>
-    <button class="filter-pill solved" id="filterSolved" onclick="setFilter('solved')">Solved</button>
+
+  <!-- Status filter -->
+  <div class="filter-segment">
+    <span class="filter-segment-label">Status</span>
+    <button class="seg-btn active" id="filterAll"    onclick="setFilter('all')">All</button>
+    <button class="seg-btn s-open"   id="filterOpen"   onclick="setFilter('open')">Open</button>
+    <button class="seg-btn s-solved" id="filterSolved" onclick="setFilter('solved')">Solved</button>
   </div>
-  <div class="filter-group">
-    <button class="filter-pill active" id="filterAssignAll" onclick="setAssigneeFilter('all')">Everyone</button>
-    <button class="filter-pill" id="filterJohann" onclick="setAssigneeFilter('Johann')">Johann</button>
-    <button class="filter-pill" id="filterErika" onclick="setAssigneeFilter('Erika')">Erika</button>
-    <button class="filter-pill" id="filterUnassigned" onclick="setAssigneeFilter('Unassigned')">Unassigned</button>
+
+  <!-- Assignee filter -->
+  <div class="filter-segment">
+    <span class="filter-segment-label">Assignee</span>
+    <button class="seg-btn active" id="filterAssignAll"   onclick="setAssigneeFilter('all')">All</button>
+    <button class="seg-btn"        id="filterJohann"      onclick="setAssigneeFilter('Johann')">Johann</button>
+    <button class="seg-btn"        id="filterErika"       onclick="setAssigneeFilter('Erika')">Erika</button>
+    <button class="seg-btn"        id="filterUnassigned"  onclick="setAssigneeFilter('Unassigned')">None</button>
   </div>
 </div>
 
@@ -575,6 +633,9 @@ header {
 <main class="main" id="mainContent">
   <div id="taskContainer"></div>
 </main>
+
+<!-- FAB -->
+<button class="fab" onclick="openAddModal()" title="Add task">+</button>
 
 <!-- Add Task Modal -->
 <div class="modal-overlay" id="addModal" onclick="if(event.target===this)closeAddModal()">
@@ -607,7 +668,7 @@ header {
 
 <script type="module">
 // ══════════════════════════════════════════════
-// ⚠ FIREBASE CONFIG
+// ⚠ FIREBASE CONFIG — replace with your own project
 // ══════════════════════════════════════════════
 import { initializeApp }            from "https://www.gstatic.com/firebasejs/11.8.0/firebase-app.js";
 import { getFirestore, collection, doc,
@@ -917,6 +978,7 @@ window.setAssigneeFilter = function(a) {
   document.getElementById(map[a])?.classList.add('active');
   render();
 };
+
 
 // ══════════════════════════════════════════════
 // MODAL
