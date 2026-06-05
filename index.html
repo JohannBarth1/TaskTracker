@@ -68,11 +68,13 @@ header {
   display: flex; align-items: center; justify-content: space-between;
   border-bottom: 3px solid var(--gold);
   flex-shrink: 0; position: sticky; top: 0; z-index: 40;
+  /* FIX 2: prevent header children from wrapping */
+  overflow: hidden;
 }
-.brand { display: flex; align-items: baseline; gap: .6rem; }
+.brand { display: flex; align-items: baseline; gap: .6rem; white-space: nowrap; flex-shrink: 0; }
 .brand-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; color: var(--light-brown); }
 .brand-sub { font-size: .58rem; letter-spacing: .18em; text-transform: uppercase; color: var(--gold); }
-.header-right { display: flex; align-items: center; gap: .65rem; }
+.header-right { display: flex; align-items: center; gap: .65rem; flex-shrink: 0; }
 .user-avatar { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--gold); object-fit: cover; flex-shrink: 0; }
 .user-avatar-initials {
   width: 30px; height: 30px; border-radius: 50%;
@@ -84,6 +86,7 @@ header {
   font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 700;
   color: var(--muted); background: none; border: 1px solid #333; border-radius: 2px;
   padding: 3px 8px; cursor: pointer; font-family: 'Lato', sans-serif; transition: all .15s;
+  white-space: nowrap;
 }
 .btn-signout:hover { color: var(--light-brown); border-color: var(--muted); }
 
@@ -93,20 +96,45 @@ header {
   padding: 0 1rem; height: var(--toolbar-h);
   display: flex; align-items: center; gap: .75rem;
   position: sticky; top: var(--header-h); z-index: 30;
+  overflow-x: auto; overflow-y: hidden;
+  /* hide scrollbar but keep scroll */
+  scrollbar-width: none;
 }
+.toolbar::-webkit-scrollbar { display: none; }
 .toolbar-date { font-family: 'Playfair Display', serif; font-size: .88rem; color: var(--brown); font-style: italic; flex-shrink: 0; padding-right: .75rem; border-right: 1px solid var(--border); white-space: nowrap; }
-.toolbar-spacer { flex: 1; }
-.filter-group { display: flex; align-items: center; gap: .3rem; flex-shrink: 0; }
-.filter-label { font-size: .58rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 700; white-space: nowrap; }
-.filter-select {
-  height: 28px; padding: 0 1.6rem 0 .55rem;
-  font-family: 'Lato', sans-serif; font-size: 1rem; font-weight: 700;
-  color: var(--ink); background: var(--warm-white); border: 1px solid var(--border); border-radius: 3px;
-  cursor: pointer; outline: none; -webkit-appearance: none; appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a7060' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right .45rem center; transition: border-color .15s;
+.toolbar-spacer { flex: 1; min-width: .25rem; }
+
+/* ── FIX 1: PILL FILTERS ── */
+.filter-pills {
+  display: flex; align-items: center; gap: .2rem; flex-shrink: 0;
 }
-.filter-select:focus { border-color: var(--gold); }
+.filter-divider {
+  width: 1px; height: 18px; background: var(--border);
+  margin: 0 .2rem; flex-shrink: 0;
+}
+.fpill {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: .8rem;
+  color: var(--muted);
+  padding: 3px 11px;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: color .15s, background .15s, border-color .15s;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+.fpill:hover { color: var(--brown); border-color: var(--border); }
+.fpill.active {
+  background: var(--ink);
+  color: var(--light-brown);
+  border-color: var(--ink);
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: .03em;
+}
 
 /* ── FAB ── */
 .fab {
@@ -139,7 +167,7 @@ header {
   background: var(--warm-white);
   border-bottom: 1px solid var(--border);
   position: relative; cursor: pointer;
-  transition: background .15s, opacity .2s;
+  transition: background .15s, opacity .2s, filter .2s;
 }
 .task-card:last-child { border-bottom: none; }
 .task-card:hover .task-card-summary { background: #fffbf5; }
@@ -155,14 +183,18 @@ header {
 .task-card.solved::before  { background: var(--success); }
 .task-card.overdue::before { background: var(--danger); }
 
-/* When any card in a list is expanded, dim the others */
+/* FIX 3: When a card is expanded, dim others but keep them interactive */
 .task-list.has-expanded .task-card:not(.expanded) {
-  opacity: .3;
-  pointer-events: none;
+  opacity: .38;
+  filter: saturate(0.4);
+}
+.task-list.has-expanded .task-card:not(.expanded):hover {
+  opacity: .72;
+  filter: saturate(0.7);
 }
 .task-list.has-expanded .task-card.expanded {
   opacity: 1;
-  pointer-events: auto;
+  filter: none;
 }
 
 /* Summary row — always visible */
@@ -431,6 +463,10 @@ select.detail-field {
 @media (max-width: 600px) {
   .toolbar-date { display: none; }
   .main { padding: .6rem .75rem 5rem; }
+  .brand-title { font-size: 1.05rem; }
+  .brand-sub { font-size: .5rem; letter-spacing: .1em; }
+  .sync-label { display: none; }
+  .btn-signout { font-size: .54rem; padding: 2px 6px; }
 }
 </style>
 </head>
@@ -486,19 +522,15 @@ select.detail-field {
 <div class="toolbar">
   <div class="toolbar-date" id="todayLabel"></div>
   <div class="toolbar-spacer"></div>
-  <div class="filter-group">
-    <span class="filter-label">Status</span>
-    <select class="filter-select" id="filterStatus" onchange="setFilter(this.value)">
-      <option value="all">All</option>
-      <option value="open">Open</option>
-      <option value="solved">Solved</option>
-    </select>
+  <!-- FIX 1: pill-style filters in Playfair italic -->
+  <div class="filter-pills" id="statusPills">
+    <button class="fpill active" data-val="all"    onclick="setFilter('all')">All</button>
+    <button class="fpill"        data-val="open"   onclick="setFilter('open')">Open</button>
+    <button class="fpill"        data-val="solved" onclick="setFilter('solved')">Solved</button>
   </div>
-  <div class="filter-group">
-    <span class="filter-label">Who</span>
-    <select class="filter-select" id="filterAssignee" onchange="setAssigneeFilter(this.value)">
-      <option value="all" selected>Everyone</option>
-    </select>
+  <div class="filter-divider"></div>
+  <div class="filter-pills" id="assigneePills">
+    <button class="fpill active" data-val="all" onclick="setAssigneeFilter('all')">Everyone</button>
   </div>
 </div>
 
@@ -547,9 +579,9 @@ const provider = new GoogleAuthProvider();
 let currentUser    = null;
 let tasks          = [];
 let users          = {};
-let chatUnsubs     = {};    // taskId → unsub fn
-let msgCounts      = {};    // taskId → count
-let msgCache       = {};    // taskId → messages array
+let chatUnsubs     = {};
+let msgCounts      = {};
+let msgCache       = {};
 let expandedCards  = new Set();
 let activeFilter   = 'all';
 let assigneeFilter = 'all';
@@ -614,22 +646,30 @@ function subscribeToUsers() {
     render();
   });
 }
+
 function rebuildAssigneeDropdowns() {
   const list = Object.entries(users)
     .map(([uid,u]) => ({ uid, name: u.displayName||u.email }))
     .sort((a,b) => a.name.localeCompare(b.name));
 
-  const fv = document.getElementById('filterAssignee').value;
-  document.getElementById('filterAssignee').innerHTML =
-    `<option value="all">Everyone</option>` +
-    list.map(u=>`<option value="${esc(u.uid)}" ${fv===u.uid?'selected':''}>${esc(u.name)}</option>`).join('') +
-    `<option value="__unassigned__" ${fv==='__unassigned__'?'selected':''}>Unassigned</option>`;
+  // Rebuild assignee filter pills (use first name only to keep pills compact)
+  const pills = document.getElementById('assigneePills');
+  if (pills) {
+    pills.innerHTML =
+      `<button class="fpill ${assigneeFilter==='all'?'active':''}" data-val="all" onclick="setAssigneeFilter('all')">Everyone</button>` +
+      list.map(u =>
+        `<button class="fpill ${assigneeFilter===u.uid?'active':''}" data-val="${esc(u.uid)}" onclick="setAssigneeFilter('${esc(u.uid)}')">${esc(u.name.split(' ')[0])}</button>`
+      ).join('') +
+      `<button class="fpill ${assigneeFilter==='__unassigned__'?'active':''}" data-val="__unassigned__" onclick="setAssigneeFilter('__unassigned__')">Unassigned</button>`;
+  }
 
+  // Rebuild modal assignee select (unchanged — native select is fine in a modal)
   const mv = document.getElementById('newTaskAssignee').value;
   document.getElementById('newTaskAssignee').innerHTML =
     `<option value="">— Unassigned —</option>` +
     list.map(u=>`<option value="${esc(u.uid)}" ${mv===u.uid?'selected':''}>${esc(u.name)}</option>`).join('');
 }
+
 function userName(uid) {
   if (!uid) return 'Unassigned';
   return users[uid]?.displayName || users[uid]?.email || uid;
@@ -696,16 +736,13 @@ function render() {
 
   container.innerHTML = html;
 
-  // Restore expansions and attach chat subscriptions
   visible.forEach(t => {
     subscribeChatCount(t.id);
     if (wasExpanded.has(t.id)) expandCard(t.id, false);
   });
 
-  // Attach click handlers to summary rows
   document.querySelectorAll('.task-card-summary').forEach(row => {
     row.addEventListener('click', e => {
-      // Don't toggle if clicking a button inside (status-btn)
       if (e.target.closest('.status-btn')) return;
       const card = row.closest('.task-card');
       const id   = card.dataset.id;
@@ -732,12 +769,9 @@ function cardHTML(t) {
 
   const msgBadge = `<span class="msg-count-badge ${count>0?'has-msgs':''}"><span class="bubble-icon">💬</span>${count}</span>`;
 
-  // Edit fields — always present in the detail panel, pre-filled
   const userOptions = Object.entries(users)
     .map(([uid,u])=>`<option value="${esc(uid)}" ${t.assignee===uid?'selected':''}>${esc(u.displayName||u.email)}</option>`)
     .join('');
-
-
 
   const solutionPlaceholder = solved ? 'How was this resolved?' : 'Add a solution or progress note…';
   const actionBtns = solved
@@ -821,7 +855,6 @@ function expandCard(id, scrollIntoView) {
   const card = document.getElementById(`card_${id}`);
   if (!card) return;
   card.classList.add('expanded');
-  // Dim all siblings in the same task-list
   card.closest('.task-list')?.classList.add('has-expanded');
   loadMessagesIntoPanel(id);
   if (scrollIntoView) {
@@ -830,7 +863,6 @@ function expandCard(id, scrollIntoView) {
 }
 
 function collapseCard(id) {
-  // Auto-save silently before collapsing
   saveTask(id, true);
   expandedCards.delete(id);
   const card = document.getElementById(`card_${id}`);
@@ -843,12 +875,10 @@ function collapseCard(id) {
 }
 
 // ── TASK ACTIONS ──────────────────────────────────────────
-// Status button: clicking the circle directly — same as before (open→solve, solved→reopen)
 window.statusClick = function(e, id) {
   e.stopPropagation();
   const t = tasks.find(x=>x.id===id); if(!t) return;
   if (t.status==='open') {
-    // Expand card and focus note field so user can add solution
     expandCard(id, true);
     setTimeout(()=>document.getElementById(`dNote_${id}`)?.focus(), 120);
   } else {
@@ -904,7 +934,7 @@ window.addTask = async function() {
   try {
     const ref = await addDoc(collection(db,'tasks'),{
       title, assignee:assignee||'', dueDate:dueDate||todayStr(),
-      status:'open', solution:'', createdAt:serverTimestamp()
+      status:'open', solution:'', createdBy: currentUser.uid, createdAt:serverTimestamp()
     });
     closeAddModal(); showToast('Task added');
     if (assignee && assignee !== currentUser.uid) {
@@ -920,10 +950,8 @@ function subscribeChatCount(taskId) {
   chatUnsubs[taskId] = onSnapshot(q, snap => {
     msgCounts[taskId] = snap.size;
     msgCache[taskId]  = snap.docs.map(d=>({id:d.id,...d.data()}));
-    // Update badge
     const badge = document.querySelector(`#card_${taskId} .msg-count-badge`);
     if (badge) { badge.textContent=''; badge.innerHTML=`<span class="bubble-icon">💬</span>${snap.size}`; badge.classList.toggle('has-msgs',snap.size>0); }
-    // If expanded, re-render messages
     if (expandedCards.has(taskId)) renderMessages(taskId, msgCache[taskId]);
   });
 }
@@ -1078,11 +1106,8 @@ window.notifClick = async function(notifId, taskId) {
     if (!expandedCards.has(taskId)) expandCard(taskId, true);
     else card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } else {
-    activeFilter   = 'all';
-    assigneeFilter = 'all';
-    document.getElementById('filterStatus').value   = 'all';
-    document.getElementById('filterAssignee').value = 'all';
-    render();
+    setFilter('all');
+    setAssigneeFilter('all');
     setTimeout(() => {
       const c = document.getElementById(`card_${taskId}`);
       if (c) expandCard(taskId, true);
@@ -1118,8 +1143,6 @@ async function notifyOthers(taskId, taskTitle, type, line) {
   const recipients = new Set();
   if (t?.assignee && t.assignee !== currentUser.uid) recipients.add(t.assignee);
   if (t?.createdBy && t.createdBy !== currentUser.uid) recipients.add(t.createdBy);
-  // For non-chat events, also notify if explicitly assigned
-  if (type === 'assigned' && t?.assignee && t.assignee !== currentUser.uid) recipients.add(t.assignee);
   const fromName = currentUser.displayName || currentUser.email || 'Someone';
   await Promise.all([...recipients].map(uid =>
     addDoc(collection(db, 'users', uid, 'notifications'), {
@@ -1139,8 +1162,16 @@ function fmtTimeAgo(ts) {
 }
 
 // ── FILTERS ───────────────────────────────────────────────
-window.setFilter         = f => { activeFilter=f; render(); };
-window.setAssigneeFilter = a => { assigneeFilter=a; render(); };
+window.setFilter = f => {
+  activeFilter = f;
+  document.querySelectorAll('#statusPills .fpill').forEach(p => p.classList.toggle('active', p.dataset.val===f));
+  render();
+};
+window.setAssigneeFilter = a => {
+  assigneeFilter = a;
+  document.querySelectorAll('#assigneePills .fpill').forEach(p => p.classList.toggle('active', p.dataset.val===a));
+  render();
+};
 
 // ── MODAL ─────────────────────────────────────────────────
 window.openAddModal = () => {
