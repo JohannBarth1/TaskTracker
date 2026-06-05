@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <title>eTask — Daily Task Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
@@ -100,7 +100,7 @@ header {
 .filter-label { font-size: .58rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 700; white-space: nowrap; }
 .filter-select {
   height: 28px; padding: 0 1.6rem 0 .55rem;
-  font-family: 'Lato', sans-serif; font-size: .72rem; font-weight: 700;
+  font-family: 'Lato', sans-serif; font-size: 1rem; font-weight: 700;
   color: var(--ink); background: var(--warm-white); border: 1px solid var(--border); border-radius: 3px;
   cursor: pointer; outline: none; -webkit-appearance: none; appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a7060' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
@@ -234,7 +234,7 @@ header {
 /* Edit fields */
 .detail-field {
   width: 100%; padding: .42rem .6rem;
-  font-family: 'Lato', sans-serif; font-size: .88rem; color: var(--ink);
+  font-family: 'Lato', sans-serif; font-size: 1rem; color: var(--ink);
   background: var(--warm-white); border: 1px solid var(--border); border-radius: 3px;
   outline: none; -webkit-appearance: none; transition: border-color .15s;
 }
@@ -321,7 +321,7 @@ select.detail-field {
 }
 .chat-textarea {
   flex: 1; resize: none; min-height: 32px; max-height: 90px;
-  padding: .34rem .55rem; font-family: 'Lato', sans-serif; font-size: .82rem;
+  padding: .34rem .55rem; font-family: 'Lato', sans-serif; font-size: 1rem;
   color: var(--ink); background: var(--cream); border: 1px solid var(--border);
   border-radius: 3px; outline: none; line-height: 1.4;
 }
@@ -767,25 +767,29 @@ function cardHTML(t) {
 
       <div>
         <label class="detail-label">Description</label>
-        <textarea class="detail-field" id="dTitle_${t.id}" rows="2">${esc(t.title)}</textarea>
+        <textarea class="detail-field" id="dTitle_${t.id}" rows="2"
+          onblur="saveTask('${t.id}',true)">${esc(t.title)}</textarea>
       </div>
 
       <div class="detail-row">
         <div>
           <label class="detail-label">Assignee</label>
-          <select class="detail-field" id="dAssignee_${t.id}">
+          <select class="detail-field" id="dAssignee_${t.id}"
+            onchange="saveTask('${t.id}',true)">
             <option value="">— Unassigned —</option>${userOptions}
           </select>
         </div>
         <div>
           <label class="detail-label">Due date</label>
-          <input type="date" class="detail-field" id="dDate_${t.id}" value="${t.dueDate||''}"/>
+          <input type="date" class="detail-field" id="dDate_${t.id}" value="${t.dueDate||''}"
+            onchange="saveTask('${t.id}',true)"/>
         </div>
       </div>
 
       <div>
         <label class="detail-label">Solution</label>
-        <textarea class="detail-field" id="dNote_${t.id}" rows="2" placeholder="${solutionPlaceholder}">${esc(t.solution||'')}</textarea>
+        <textarea class="detail-field" id="dNote_${t.id}" rows="2" placeholder="${solutionPlaceholder}"
+          onblur="saveTask('${t.id}',true)">${esc(t.solution||'')}</textarea>
       </div>
 
       <div class="detail-actions">${actionBtns}</div>
@@ -828,11 +832,12 @@ function expandCard(id, scrollIntoView) {
 }
 
 function collapseCard(id) {
+  // Auto-save silently before collapsing
+  saveTask(id, true);
   expandedCards.delete(id);
   const card = document.getElementById(`card_${id}`);
   if (!card) return;
   card.classList.remove('expanded');
-  // Only remove has-expanded if no other card in this list is still expanded
   const list = card.closest('.task-list');
   if (list && !list.querySelector('.task-card.expanded')) {
     list.classList.remove('has-expanded');
@@ -853,20 +858,20 @@ window.statusClick = function(e, id) {
   }
 };
 
-window.saveTask = async function(id) {
+window.saveTask = async function(id, silent=false) {
   const title    = document.getElementById(`dTitle_${id}`)?.value.trim();
   const assignee = document.getElementById(`dAssignee_${id}`)?.value;
   const dueDate  = document.getElementById(`dDate_${id}`)?.value;
   const solution = document.getElementById(`dNote_${id}`)?.value.trim();
-  if (!title) { showToast('Task cannot be empty'); return; }
+  if (!title) { if (!silent) showToast('Task cannot be empty'); return; }
   try {
     const prevTask = tasks.find(x=>x.id===id);
     await updateDoc(doc(db,'tasks',id), { title, assignee:assignee||'', dueDate:dueDate||'', solution:solution||'' });
-    showToast('Saved');
+    if (!silent) showToast('Saved');
     if (assignee && assignee !== currentUser.uid && assignee !== prevTask?.assignee) {
       notifyOthers(id, title, 'assigned', `Assigned to you by ${currentUser.displayName||currentUser.email||'Someone'}`);
     }
-  } catch(e) { showToast('Save failed'); console.error(e); }
+  } catch(e) { if (!silent) showToast('Save failed'); console.error(e); }
 };
 
 window.solveTask = async function(id) {
