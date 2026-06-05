@@ -502,7 +502,7 @@ select.detail-field {
     <span class="sync-dot" id="syncDot"></span>
     <span class="sync-label" id="syncLabel">Connecting…</span>
     <div style="position:relative">
-      <button class="notif-btn" id="notifBtn" onclick="toggleNotifDropdown()" title="Notifications">🔔<span class="notif-badge" id="notifBadge"></span></button>
+      <button class="notif-btn" id="notifBtn" onclick="toggleNotifDropdown()" title="Notifications">✦<span class="notif-badge" id="notifBadge"></span></button>
       <div class="notif-dropdown" id="notifDropdown">
         <div class="notif-header">
           <span class="notif-header-label">Notifications</span>
@@ -1067,7 +1067,7 @@ function renderNotifList(notifs) {
   }
   const icons = { chat: '💬', assigned: '👤', solved: '✅', reopened: '↩' };
   list.innerHTML = notifs.map(n => {
-    const icon = icons[n.type] || '🔔';
+    const icon = icons[n.type] || '✦';
     const time = n.createdAt ? fmtTimeAgo(n.createdAt) : '';
     return `<div class="notif-item" onclick="notifClick('${n.id}','${n.taskId}')">
       <span class="notif-icon">${icon}</span>
