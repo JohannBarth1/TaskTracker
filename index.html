@@ -204,15 +204,17 @@ header {
 }
 .task-card.expanded .task-detail { display: block; }
 
-.detail-section {
-  padding: .7rem .95rem .7rem 1.1rem;
-  border-bottom: 1px solid var(--border);
+/* Single padded form area — no internal dividers */
+.detail-form {
+  padding: .75rem 1rem .75rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .55rem;
 }
-.detail-section:last-child { border-bottom: none; }
 
 .detail-label {
   font-size: .56rem; letter-spacing: .18em; text-transform: uppercase;
-  color: var(--muted); font-weight: 700; margin-bottom: .35rem;
+  color: var(--muted); font-weight: 700; margin-bottom: .2rem; display: block;
 }
 
 /* Edit fields */
@@ -221,27 +223,25 @@ header {
   font-family: 'Lato', sans-serif; font-size: .88rem; color: var(--ink);
   background: var(--warm-white); border: 1px solid var(--border); border-radius: 3px;
   outline: none; -webkit-appearance: none; transition: border-color .15s;
-  /* prevent tap from bubbling to card toggle */
 }
 .detail-field:focus { border-color: var(--gold); }
-textarea.detail-field { resize: vertical; min-height: 58px; line-height: 1.5; }
+textarea.detail-field { resize: vertical; min-height: 54px; line-height: 1.5; }
 select.detail-field {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a7060' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right .6rem center; padding-right: 1.8rem;
 }
-.detail-row { display: flex; gap: .5rem; margin-top: .4rem; }
+.detail-row { display: flex; gap: .5rem; }
 .detail-row > * { flex: 1; }
 
-/* Action buttons row */
+/* Action buttons — borderless bar at the bottom of the form */
 .detail-actions {
   display: flex; gap: .4rem; flex-wrap: wrap;
-  padding: .6rem .95rem .6rem 1.1rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--panel);
+  padding-top: .2rem;
 }
+
 .act-btn {
-  padding: .38rem .85rem;
-  font-family: 'Lato', sans-serif; font-size: .7rem; font-weight: 700;
+  padding: .36rem .8rem;
+  font-family: 'Lato', sans-serif; font-size: .68rem; font-weight: 700;
   letter-spacing: .05em; text-transform: uppercase;
   border-radius: 2px; cursor: pointer; border: none;
   transition: background .15s, transform .1s; white-space: nowrap;
@@ -253,29 +253,19 @@ select.detail-field {
 .act-solve:hover { background: #1f5c37; }
 .act-reopen  { background: var(--brown);   color: #fff; }
 .act-reopen:hover { background: #4a3018; }
-.act-delete  { background: transparent; color: var(--danger); border: 1px solid rgba(176,48,48,.3); }
+.act-delete  { background: transparent; color: var(--danger); border: 1px solid rgba(176,48,48,.3); margin-left: auto; }
 .act-delete:hover { background: #fbeaea; }
 
-/* Note display (when note exists, shown above note textarea) */
-.note-display {
-  padding: .28rem .55rem; border-radius: 0 3px 3px 0;
-  font-size: .76rem; line-height: 1.4; font-style: italic;
-  margin-bottom: .4rem;
-}
-.note-display.is-solved { background: var(--success-pale); border-left: 2px solid var(--success); color: #1f5c37; }
-.note-display.is-open   { background: #fff8ee; border-left: 2px solid var(--gold); color: #7a5a20; }
-.note-display-label { font-style: normal; font-weight: 700; font-size: .58rem; letter-spacing: .08em; text-transform: uppercase; display: block; margin-bottom: 2px; }
-.note-display.is-solved .note-display-label { color: var(--success); }
-.note-display.is-open   .note-display-label { color: var(--gold); }
+
 
 /* ── CHAT ── */
-.chat-section { padding: 0; }
+.chat-section { padding: 0; border-top: 1px solid var(--border); }
 .chat-header-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: .5rem .95rem .5rem 1.1rem;
+  display: flex; align-items: center;
+  padding: .4rem 1rem .4rem 1.1rem;
   background: var(--panel); border-bottom: 1px solid var(--border);
 }
-.chat-header-label { font-size: .58rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.chat-header-label { font-size: .56rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
 .chat-messages {
   padding: .55rem .8rem;
   display: flex; flex-direction: column; gap: .45rem;
@@ -649,20 +639,14 @@ function cardHTML(t) {
     .map(([uid,u])=>`<option value="${esc(uid)}" ${t.assignee===uid?'selected':''}>${esc(u.displayName||u.email)}</option>`)
     .join('');
 
-  // Existing note/solution display
-  let noteDisplay = '';
-  if (t.solution) {
-    const cls2 = solved?'is-solved':'is-open';
-    const lbl  = solved?'✓ Solution':'📝 Note';
-    noteDisplay = `<div class="note-display ${cls2}"><span class="note-display-label">${lbl}</span>${esc(t.solution)}</div>`;
-  }
 
-  // Action buttons differ for open vs solved
+
+  const solutionPlaceholder = solved ? 'How was this resolved?' : 'Add a solution or progress note…';
   const actionBtns = solved
-    ? `<button class="act-btn act-save"   onclick="saveTask('${t.id}')">Save changes</button>
+    ? `<button class="act-btn act-save"   onclick="saveTask('${t.id}')">Save</button>
        <button class="act-btn act-reopen" onclick="reopenTask('${t.id}')">Reopen</button>
        <button class="act-btn act-delete" onclick="deleteTask('${t.id}')">Delete</button>`
-    : `<button class="act-btn act-save"   onclick="saveTask('${t.id}')">Save changes</button>
+    : `<button class="act-btn act-save"   onclick="saveTask('${t.id}')">Save</button>
        <button class="act-btn act-solve"  onclick="solveTask('${t.id}')">Mark Solved</button>
        <button class="act-btn act-delete" onclick="deleteTask('${t.id}')">Delete</button>`;
 
@@ -681,29 +665,34 @@ function cardHTML(t) {
   </div>
 
   <div class="task-detail">
-    <!-- Edit fields -->
-    <div class="detail-section">
-      <div class="detail-label">Task</div>
-      <textarea class="detail-field" id="dTitle_${t.id}" rows="2">${esc(t.title)}</textarea>
-      <div class="detail-row">
-        <select class="detail-field" id="dAssignee_${t.id}">
-          <option value="">— Unassigned —</option>${userOptions}
-        </select>
-        <input type="date" class="detail-field" id="dDate_${t.id}" value="${t.dueDate||''}"/>
+    <div class="detail-form">
+
+      <div>
+        <label class="detail-label">Description</label>
+        <textarea class="detail-field" id="dTitle_${t.id}" rows="2">${esc(t.title)}</textarea>
       </div>
+
+      <div class="detail-row">
+        <div>
+          <label class="detail-label">Assignee</label>
+          <select class="detail-field" id="dAssignee_${t.id}">
+            <option value="">— Unassigned —</option>${userOptions}
+          </select>
+        </div>
+        <div>
+          <label class="detail-label">Due date</label>
+          <input type="date" class="detail-field" id="dDate_${t.id}" value="${t.dueDate||''}"/>
+        </div>
+      </div>
+
+      <div>
+        <label class="detail-label">Solution</label>
+        <textarea class="detail-field" id="dNote_${t.id}" rows="2" placeholder="${solutionPlaceholder}">${esc(t.solution||'')}</textarea>
+      </div>
+
+      <div class="detail-actions">${actionBtns}</div>
     </div>
 
-    <!-- Note / solution -->
-    <div class="detail-section">
-      <div class="detail-label">${solved?'Solution':'Note'}</div>
-      ${noteDisplay}
-      <textarea class="detail-field" id="dNote_${t.id}" rows="2" placeholder="${solved?'Solution…':'Add a note or progress update…'}">${esc(t.solution||'')}</textarea>
-    </div>
-
-    <!-- Action buttons -->
-    <div class="detail-actions">${actionBtns}</div>
-
-    <!-- Chat -->
     <div class="chat-section">
       <div class="chat-header-row">
         <span class="chat-header-label">💬 Discussion</span>
