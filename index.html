@@ -741,8 +741,7 @@ function cardHTML(t) {
 
   const solutionPlaceholder = solved ? 'How was this resolved?' : 'Add a solution or progress note…';
   const actionBtns = solved
-    ? `<button class="act-btn act-save"   onclick="saveTask('${t.id}')">Save</button>
-       <button class="act-btn act-reopen" onclick="reopenTask('${t.id}')">Reopen</button>
+    ? `<button class="act-btn act-reopen" onclick="reopenTask('${t.id}')">Reopen</button>
        <button class="act-btn act-delete" onclick="deleteTask('${t.id}')">Delete</button>`
     : `<button class="act-btn act-save"   onclick="saveTask('${t.id}')">Save</button>
        <button class="act-btn act-solve"  onclick="solveTask('${t.id}')">Mark Solved</button>
