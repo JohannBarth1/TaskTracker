@@ -1008,11 +1008,16 @@ function subscribeToNotifications() {
   if (!currentUser) return;
   const q = query(
     collection(db, 'users', currentUser.uid, 'notifications'),
-    where('read', '==', false),
-    orderBy('createdAt', 'desc')
+    where('read', '==', false)
   );
   notifUnsub = onSnapshot(q, snap => {
-    const notifs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const notifs = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => {
+        const ta = a.createdAt?.toMillis?.() ?? 0;
+        const tb = b.createdAt?.toMillis?.() ?? 0;
+        return tb - ta;
+      });
     renderNotifBadge(notifs.length);
     renderNotifList(notifs);
   });
@@ -1112,9 +1117,9 @@ async function notifyOthers(taskId, taskTitle, type, line) {
   const t = tasks.find(x => x.id === taskId);
   const recipients = new Set();
   if (t?.assignee && t.assignee !== currentUser.uid) recipients.add(t.assignee);
-  if (type === 'chat') {
-    Object.keys(users).forEach(uid => { if (uid !== currentUser.uid) recipients.add(uid); });
-  }
+  if (t?.createdBy && t.createdBy !== currentUser.uid) recipients.add(t.createdBy);
+  // For non-chat events, also notify if explicitly assigned
+  if (type === 'assigned' && t?.assignee && t.assignee !== currentUser.uid) recipients.add(t.assignee);
   const fromName = currentUser.displayName || currentUser.email || 'Someone';
   await Promise.all([...recipients].map(uid =>
     addDoc(collection(db, 'users', uid, 'notifications'), {
