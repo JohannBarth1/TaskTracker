@@ -352,6 +352,64 @@ select.detail-field {
 .btn-save { background: var(--rust); color: #fff; } .btn-save:hover { background: #a04415; }
 .btn-cancel { background: transparent; color: var(--muted); border: 1px solid var(--border); } .btn-cancel:hover { background: var(--light-brown); }
 
+/* ── NOTIFICATIONS ── */
+.notif-btn {
+  position: relative; background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: 1.1rem; line-height: 1;
+  padding: 2px 4px; transition: color .15s; flex-shrink: 0;
+}
+.notif-btn:hover { color: var(--light-brown); }
+.notif-badge {
+  position: absolute; top: -3px; right: -4px;
+  background: var(--danger); color: #fff;
+  font-size: .52rem; font-weight: 900; font-family: 'Lato', sans-serif;
+  line-height: 1; padding: 2px 4px; border-radius: 8px;
+  min-width: 14px; text-align: center; display: none;
+}
+.notif-badge.visible { display: block; }
+.notif-dropdown {
+  display: none; position: absolute;
+  top: calc(var(--header-h) + 4px); right: 1rem;
+  width: 320px; max-width: calc(100vw - 2rem);
+  background: var(--warm-white); border: 1px solid var(--border);
+  border-radius: 5px; box-shadow: 0 6px 24px rgba(26,18,8,.18);
+  z-index: 200; overflow: hidden; flex-direction: column;
+}
+.notif-dropdown.open { display: flex; }
+.notif-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .5rem .8rem; background: var(--panel); border-bottom: 1px solid var(--border);
+}
+.notif-header-label { font-size: .58rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.notif-dismiss-all {
+  background: none; border: none; cursor: pointer;
+  font-size: .62rem; font-weight: 700; font-family: 'Lato', sans-serif;
+  color: var(--muted); letter-spacing: .05em; text-transform: uppercase;
+  transition: color .15s; padding: 0;
+}
+.notif-dismiss-all:hover { color: var(--rust); }
+.notif-list { overflow-y: auto; max-height: 340px; display: flex; flex-direction: column; }
+.notif-empty { padding: 1.4rem 1rem; text-align: center; font-size: .8rem; color: var(--muted); font-style: italic; }
+.notif-item {
+  display: flex; align-items: flex-start; gap: .6rem;
+  padding: .58rem .8rem; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background .12s;
+}
+.notif-item:last-child { border-bottom: none; }
+.notif-item:hover { background: #fffbf5; }
+.notif-icon { font-size: .95rem; flex-shrink: 0; margin-top: 1px; line-height: 1; }
+.notif-body { flex: 1; min-width: 0; }
+.notif-task { font-size: .8rem; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notif-line { font-size: .72rem; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notif-time { font-size: .6rem; color: var(--muted); margin-top: 2px; }
+.notif-dismiss {
+  background: none; border: none; cursor: pointer;
+  font-size: .7rem; color: var(--muted); flex-shrink: 0;
+  padding: 0 2px; opacity: 0; transition: opacity .15s, color .15s; align-self: center;
+}
+.notif-item:hover .notif-dismiss { opacity: 1; }
+.notif-dismiss:hover { color: var(--danger); }
+
 /* ── EMPTY / SYNC / TOAST / LOADING ── */
 .empty-state { text-align: center; padding: 2rem 1rem; color: var(--muted); }
 .empty-state .es-icon { font-size: 2rem; opacity: .3; margin-bottom: .5rem; }
@@ -407,6 +465,18 @@ select.detail-field {
   <div class="header-right">
     <span class="sync-dot" id="syncDot"></span>
     <span class="sync-label" id="syncLabel">Connecting…</span>
+    <div style="position:relative">
+      <button class="notif-btn" id="notifBtn" onclick="toggleNotifDropdown()" title="Notifications">🔔<span class="notif-badge" id="notifBadge"></span></button>
+      <div class="notif-dropdown" id="notifDropdown">
+        <div class="notif-header">
+          <span class="notif-header-label">Notifications</span>
+          <button class="notif-dismiss-all" onclick="dismissAllNotifs()">Dismiss all</button>
+        </div>
+        <div class="notif-list" id="notifList">
+          <div class="notif-empty">No new notifications</div>
+        </div>
+      </div>
+    </div>
     <div id="userAvatarWrap"></div>
     <button class="btn-signout" id="btnSignOut" style="display:none" onclick="signOut()">Sign out</button>
   </div>
@@ -457,7 +527,7 @@ import { initializeApp }   from "https://www.gstatic.com/firebasejs/11.8.0/fireb
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut }
                            from "https://www.gstatic.com/firebasejs/11.8.0/firebase-auth.js";
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc,
-         deleteDoc, query, orderBy, setDoc, getDocs, serverTimestamp }
+         deleteDoc, query, orderBy, where, setDoc, getDocs, serverTimestamp }
                            from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -483,6 +553,8 @@ let msgCache       = {};    // taskId → messages array
 let expandedCards  = new Set();
 let activeFilter   = 'all';
 let assigneeFilter = 'all';
+let notifUnsub     = null;
+let notifOpen      = false;
 
 // ── AUTH ──────────────────────────────────────────────────
 document.getElementById('btnGoogleSignIn').onclick = async () => {
@@ -492,6 +564,7 @@ document.getElementById('btnGoogleSignIn').onclick = async () => {
 window.signOut = async () => {
   Object.values(chatUnsubs).forEach(u => u());
   chatUnsubs = {};
+  if (notifUnsub) { notifUnsub(); notifUnsub = null; }
   await fbSignOut(auth);
 };
 
@@ -510,6 +583,7 @@ onAuthStateChanged(auth, async user => {
     }, { merge: true });
     subscribeToUsers();
     subscribeToTasks();
+    subscribeToNotifications();
     setSyncState('loading');
   } else {
     currentUser = null;
@@ -786,8 +860,12 @@ window.saveTask = async function(id) {
   const solution = document.getElementById(`dNote_${id}`)?.value.trim();
   if (!title) { showToast('Task cannot be empty'); return; }
   try {
+    const prevTask = tasks.find(x=>x.id===id);
     await updateDoc(doc(db,'tasks',id), { title, assignee:assignee||'', dueDate:dueDate||'', solution:solution||'' });
     showToast('Saved');
+    if (assignee && assignee !== currentUser.uid && assignee !== prevTask?.assignee) {
+      notifyOthers(id, title, 'assigned', `Assigned to you by ${currentUser.displayName||currentUser.email||'Someone'}`);
+    }
   } catch(e) { showToast('Save failed'); console.error(e); }
 };
 
@@ -796,6 +874,8 @@ window.solveTask = async function(id) {
   try {
     await updateDoc(doc(db,'tasks',id), { status:'solved', solution, solvedAt:serverTimestamp() });
     showToast('Task solved ✓');
+    const st = tasks.find(x=>x.id===id);
+    if (st) notifyOthers(id, st.title, 'solved', `Marked solved by ${currentUser.displayName||currentUser.email||'Someone'}`);
   } catch(e) { showToast('Update failed'); console.error(e); }
 };
 
@@ -819,11 +899,14 @@ window.addTask = async function() {
   const dueDate  = document.getElementById('newTaskDate').value;
   if (!title) { showToast('Please enter a task description'); return; }
   try {
-    await addDoc(collection(db,'tasks'),{
+    const ref = await addDoc(collection(db,'tasks'),{
       title, assignee:assignee||'', dueDate:dueDate||todayStr(),
       status:'open', solution:'', createdAt:serverTimestamp()
     });
     closeAddModal(); showToast('Task added');
+    if (assignee && assignee !== currentUser.uid) {
+      notifyOthers(ref.id, title, 'assigned', `Assigned to you by ${currentUser.displayName||currentUser.email||'Someone'}`);
+    }
   } catch(e) { showToast('Failed to add task'); console.error(e); }
 };
 
@@ -903,6 +986,9 @@ window.sendMessage = async function(taskId) {
       photoURL:currentUser.photoURL||'',
       createdAt:serverTimestamp()
     });
+    const chatTask = tasks.find(x=>x.id===taskId);
+    const senderName = currentUser.displayName||currentUser.email||'Someone';
+    notifyOthers(taskId, chatTask?.title||'Task', 'chat', `${senderName}: ${text.slice(0,70)}${text.length>70?'…':''}`);
     setTimeout(()=>{ const m=document.getElementById(`chatMsgs_${taskId}`); if(m)m.scrollTop=m.scrollHeight; },120);
   } catch(e) { showToast('Failed to send'); console.error(e); }
 };
@@ -913,6 +999,136 @@ window.deleteMessage = async function(taskId, msgId) {
     await deleteDoc(doc(db,'tasks',taskId,'messages',msgId));
   } catch(e) { showToast('Could not delete message'); console.error(e); }
 };
+
+// ── NOTIFICATIONS ────────────────────────────────────────
+function subscribeToNotifications() {
+  if (!currentUser) return;
+  const q = query(
+    collection(db, 'users', currentUser.uid, 'notifications'),
+    where('read', '==', false),
+    orderBy('createdAt', 'desc')
+  );
+  notifUnsub = onSnapshot(q, snap => {
+    const notifs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderNotifBadge(notifs.length);
+    renderNotifList(notifs);
+  });
+}
+
+function renderNotifBadge(count) {
+  const badge = document.getElementById('notifBadge');
+  if (!badge) return;
+  badge.textContent = count > 9 ? '9+' : count;
+  badge.classList.toggle('visible', count > 0);
+}
+
+function renderNotifList(notifs) {
+  const list = document.getElementById('notifList');
+  if (!list) return;
+  if (notifs.length === 0) {
+    list.innerHTML = '<div class="notif-empty">No new notifications</div>';
+    return;
+  }
+  const icons = { chat: '💬', assigned: '👤', solved: '✅', reopened: '↩' };
+  list.innerHTML = notifs.map(n => {
+    const icon = icons[n.type] || '🔔';
+    const time = n.createdAt ? fmtTimeAgo(n.createdAt) : '';
+    return `<div class="notif-item" onclick="notifClick('${n.id}','${n.taskId}')">
+      <span class="notif-icon">${icon}</span>
+      <div class="notif-body">
+        <div class="notif-task">${esc(n.taskTitle||'')}</div>
+        <div class="notif-line">${esc(n.line||'')}</div>
+        <div class="notif-time">${time}</div>
+      </div>
+      <button class="notif-dismiss" onclick="dismissNotif(event,'${n.id}')" title="Dismiss">✕</button>
+    </div>`;
+  }).join('');
+}
+
+window.toggleNotifDropdown = function() {
+  notifOpen = !notifOpen;
+  document.getElementById('notifDropdown')?.classList.toggle('open', notifOpen);
+};
+
+function closeNotifDropdown() {
+  notifOpen = false;
+  document.getElementById('notifDropdown')?.classList.remove('open');
+}
+
+document.addEventListener('click', e => {
+  if (notifOpen && !document.getElementById('notifBtn')?.contains(e.target)
+               && !document.getElementById('notifDropdown')?.contains(e.target)) {
+    closeNotifDropdown();
+  }
+});
+
+window.notifClick = async function(notifId, taskId) {
+  await markNotifRead(notifId);
+  closeNotifDropdown();
+  const card = document.getElementById(`card_${taskId}`);
+  if (card) {
+    if (!expandedCards.has(taskId)) expandCard(taskId, true);
+    else card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } else {
+    activeFilter   = 'all';
+    assigneeFilter = 'all';
+    document.getElementById('filterStatus').value   = 'all';
+    document.getElementById('filterAssignee').value = 'all';
+    render();
+    setTimeout(() => {
+      const c = document.getElementById(`card_${taskId}`);
+      if (c) expandCard(taskId, true);
+    }, 150);
+  }
+};
+
+window.dismissNotif = async function(e, notifId) {
+  e.stopPropagation();
+  await markNotifRead(notifId);
+};
+
+window.dismissAllNotifs = async function() {
+  if (!currentUser) return;
+  const q = query(
+    collection(db, 'users', currentUser.uid, 'notifications'),
+    where('read', '==', false)
+  );
+  const snap = await getDocs(q);
+  await Promise.all(snap.docs.map(d => updateDoc(d.ref, { read: true })));
+};
+
+async function markNotifRead(notifId) {
+  if (!currentUser) return;
+  try {
+    await updateDoc(doc(db, 'users', currentUser.uid, 'notifications', notifId), { read: true });
+  } catch(e) { console.error('markNotifRead', e); }
+}
+
+async function notifyOthers(taskId, taskTitle, type, line) {
+  if (!currentUser) return;
+  const t = tasks.find(x => x.id === taskId);
+  const recipients = new Set();
+  if (t?.assignee && t.assignee !== currentUser.uid) recipients.add(t.assignee);
+  if (type === 'chat') {
+    Object.keys(users).forEach(uid => { if (uid !== currentUser.uid) recipients.add(uid); });
+  }
+  const fromName = currentUser.displayName || currentUser.email || 'Someone';
+  await Promise.all([...recipients].map(uid =>
+    addDoc(collection(db, 'users', uid, 'notifications'), {
+      taskId, taskTitle, type, line, fromName,
+      fromUid: currentUser.uid, read: false, createdAt: serverTimestamp()
+    })
+  ));
+}
+
+function fmtTimeAgo(ts) {
+  const d   = ts.toDate ? ts.toDate() : new Date(ts);
+  const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (sec < 60)    return 'just now';
+  if (sec < 3600)  return `${Math.floor(sec/60)}m ago`;
+  if (sec < 86400) return `${Math.floor(sec/3600)}h ago`;
+  return fmtDate(d.toISOString().slice(0,10));
+}
 
 // ── FILTERS ───────────────────────────────────────────────
 window.setFilter         = f => { activeFilter=f; render(); };
