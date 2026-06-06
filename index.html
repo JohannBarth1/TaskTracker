@@ -406,6 +406,22 @@ select.detail-field {
   z-index: 200; overflow: hidden; flex-direction: column;
 }
 .notif-dropdown.open { display: flex; }
+
+@media (max-width: 600px) {
+  .notif-dropdown {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    border-radius: 14px 14px 0 0;
+    border-bottom: none;
+    box-shadow: 0 -4px 24px rgba(26,18,8,.22);
+  }
+  .notif-list { max-height: 60vh; }
+}
 .notif-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: .5rem .8rem; background: var(--panel); border-bottom: 1px solid var(--border);
