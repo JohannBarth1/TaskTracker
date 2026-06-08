@@ -585,6 +585,8 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signO
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc,
          deleteDoc, query, orderBy, where, setDoc, getDocs, serverTimestamp }
                            from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
+import { getMessaging, getToken, onMessage }
+                           from "https://www.gstatic.com/firebasejs/11.8.0/firebase-messaging.js";
 
 const firebaseConfig = {
   apiKey:            "AIzaSyAKulZ1Z5rklbYR4DPKGsqRyq9DWUCI0ms",
@@ -598,7 +600,12 @@ const firebaseConfig = {
 const app      = initializeApp(firebaseConfig);
 const auth     = getAuth(app);
 const db       = getFirestore(app);
+const messaging = getMessaging(app);
 const provider = new GoogleAuthProvider();
+
+// ── VAPID KEY — replace with your key from Firebase Console ──────────────────
+// Project Settings → Cloud Messaging → Web Push certificates → Key pair
+const VAPID_KEY = 'YOUR_VAPID_KEY_HERE';
 
 let currentUser    = null;
 let tasks          = [];
@@ -641,6 +648,7 @@ onAuthStateChanged(auth, async user => {
     subscribeToTasks();
     subscribeToNotifications();
     setSyncState('loading');
+    registerPushToken(user);
   } else {
     currentUser = null;
     const ls = document.getElementById('loginScreen');
@@ -660,6 +668,48 @@ function renderHeaderUser(user) {
     wrap.innerHTML = `<div class="user-avatar-initials" title="${esc(user.displayName||user.email)}">${i}</div>`;
   }
 }
+
+// ── PUSH NOTIFICATIONS ────────────────────────────────────
+async function registerPushToken(user) {
+  try {
+    // Register the service worker first
+    const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+
+    // Ask permission (no-op if already granted/denied)
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      console.info('Push permission not granted');
+      return;
+    }
+
+    // Get FCM token for this device
+    const token = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: swReg
+    });
+
+    if (!token) return;
+
+    // Store token in Firestore under the user — merge so we don't overwrite other fields
+    await setDoc(doc(db, 'users', user.uid), {
+      fcmTokens: { [token]: true }   // map lets a user have multiple devices
+    }, { merge: true });
+
+    console.info('FCM token registered');
+  } catch (err) {
+    // Silently fail — push is an enhancement, not required
+    console.warn('Push registration failed:', err);
+  }
+}
+
+// Handle messages when the app IS in the foreground
+// (background messages are handled by the service worker)
+onMessage(messaging, payload => {
+  const { title, body, tag } = payload.notification || payload.data || {};
+  showToast(body || title || 'New notification');
+  // Also refresh the in-app notification list
+  // (Firestore listener will pick it up automatically)
+});
 
 // ── USERS ─────────────────────────────────────────────────
 function subscribeToUsers() {
