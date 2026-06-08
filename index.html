@@ -68,6 +68,8 @@ header {
   display: flex; align-items: center; justify-content: space-between;
   border-bottom: 3px solid var(--gold);
   flex-shrink: 0; position: sticky; top: 0; z-index: 40;
+  /* FIX 2: prevent header children from wrapping */
+  overflow: hidden;
 }
 .brand { display: flex; align-items: baseline; gap: .6rem; white-space: nowrap; flex-shrink: 0; }
 .brand-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; color: var(--light-brown); }
@@ -180,6 +182,30 @@ header {
 }
 .task-card.solved::before  { background: var(--success); }
 .task-card.overdue::before { background: var(--danger); }
+.task-card.pending::before { background: var(--gold); }
+
+/* Approval bar */
+.approval-bar {
+  display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+  padding: .5rem 1rem .5rem 1.1rem;
+  background: #fffbee; border-top: 1px solid var(--border);
+}
+.approval-label {
+  font-size: .6rem; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--gold); font-weight: 700; flex-shrink: 0;
+}
+.approval-avatars { display: flex; align-items: center; gap: .35rem; flex: 1; flex-wrap: wrap; }
+.approval-chip {
+  display: flex; align-items: center; gap: .28rem;
+  font-size: .68rem; font-weight: 700;
+  padding: 2px 8px 2px 4px; border-radius: 20px;
+  border: 1px solid var(--border);
+}
+.approval-chip.approved { background: rgba(42,122,74,.1); border-color: rgba(42,122,74,.3); color: var(--success); }
+.approval-chip.waiting  { background: var(--panel); color: var(--muted); }
+.approval-chip-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.act-approve { background: var(--gold); color: #fff; }
+.act-approve:hover { background: #a87820; }
 
 /* FIX 3: When a card is expanded, dim others but keep them interactive */
 .task-list.has-expanded .task-card:not(.expanded) {
@@ -385,7 +411,7 @@ select.detail-field {
 /* ── NOTIFICATIONS ── */
 .notif-btn {
   position: relative; background: none; border: none; cursor: pointer;
-  color: var(--muted); font-size: 1.9rem; line-height: 1;
+  color: var(--muted); font-size: 1.1rem; line-height: 1;
   padding: 2px 4px; transition: color .15s; flex-shrink: 0;
 }
 .notif-btn:hover { color: var(--light-brown); }
@@ -406,22 +432,6 @@ select.detail-field {
   z-index: 200; overflow: hidden; flex-direction: column;
 }
 .notif-dropdown.open { display: flex; }
-
-@media (max-width: 600px) {
-  .notif-dropdown {
-    position: fixed;
-    top: auto;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    max-width: 100%;
-    border-radius: 14px 14px 0 0;
-    border-bottom: none;
-    box-shadow: 0 -4px 24px rgba(26,18,8,.22);
-  }
-  .notif-list { max-height: 60vh; }
-}
 .notif-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: .5rem .8rem; background: var(--panel); border-bottom: 1px solid var(--border);
@@ -516,7 +526,7 @@ select.detail-field {
     <span class="sync-dot" id="syncDot"></span>
     <span class="sync-label" id="syncLabel">Connecting…</span>
     <div style="position:relative">
-      <button class="notif-btn" id="notifBtn" onclick="toggleNotifDropdown()" title="Notifications">✦<span class="notif-badge" id="notifBadge"></span></button>
+      <button class="notif-btn" id="notifBtn" onclick="toggleNotifDropdown()" title="Notifications">🔔<span class="notif-badge" id="notifBadge"></span></button>
       <div class="notif-dropdown" id="notifDropdown">
         <div class="notif-header">
           <span class="notif-header-label">Notifications</span>
@@ -719,7 +729,7 @@ function fmtTime(ts) {
 function getVisible() {
   const today = todayStr();
   return tasks.filter(t => {
-    if (activeFilter==='open'   && t.status!=='open')   return false;
+    if (activeFilter==='open'   && t.status!=='open' && t.status!=='pending') return false;
     if (activeFilter==='solved' && t.status!=='solved') return false;
     const a = t.assignee||'__unassigned__';
     if (assigneeFilter!=='all' && a!==assigneeFilter) return false;
@@ -730,7 +740,7 @@ function getVisible() {
 function render() {
   const container   = document.getElementById('taskContainer');
   const visible     = getVisible();
-  const openTasks   = visible.filter(t=>t.status==='open');
+  const openTasks   = visible.filter(t=>t.status==='open' || t.status==='pending');
   const solvedTasks = visible.filter(t=>t.status==='solved');
   const wasExpanded = new Set(expandedCards);
 
@@ -772,9 +782,11 @@ function sectionHTML(label, count, cls, style='') {
 }
 
 function cardHTML(t) {
-  const overdue = isOverdue(t.dueDate);
-  const solved  = t.status==='solved';
-  const count   = msgCounts[t.id]||0;
+  const overdue  = isOverdue(t.dueDate);
+  const solved   = t.status==='solved';
+  const pending  = t.status==='pending';
+  const count    = msgCounts[t.id]||0;
+  const approvals = t.approvals || {};
 
   const dateLabel = t.dueDate
     ? `<span class="task-date ${overdue&&!solved?'overdue':''}">${overdue&&!solved?'⚠ ':''}${fmtDate(t.dueDate)}</span>`
@@ -787,25 +799,61 @@ function cardHTML(t) {
     .join('');
 
   const solutionPlaceholder = solved ? 'How was this resolved?' : 'Add a solution or progress note…';
-  const actionBtns = solved
-    ? `<button class="act-btn act-reopen" onclick="reopenTask('${t.id}')">Reopen</button>
-       <button class="act-btn act-delete" onclick="deleteTask('${t.id}')">Delete</button>`
-    : `<button class="act-btn act-solve"  onclick="solveTask('${t.id}')">Mark Solved</button>
-       <button class="act-btn act-delete" onclick="deleteTask('${t.id}')">Delete</button>`;
+
+  // ── Approval bar (shown when pending) ──
+  const allUids = Object.keys(users);
+  const approvalBarHTML = pending ? `
+    <div class="approval-bar">
+      <span class="approval-label">✦ Awaiting approval</span>
+      <div class="approval-avatars">
+        ${allUids.map(uid => {
+          const approved = !!approvals[uid];
+          const name = (users[uid]?.displayName || users[uid]?.email || uid).split(' ')[0];
+          return `<span class="approval-chip ${approved?'approved':'waiting'}">
+            <span class="approval-chip-dot"></span>${esc(name)}${approved?' ✓':''}
+          </span>`;
+        }).join('')}
+      </div>
+    </div>` : '';
+
+  // ── Summary status indicator ──
+  const pendingIndicator = pending
+    ? `<span style="font-size:.6rem;color:var(--gold);font-weight:700;white-space:nowrap">✦ pending</span>`
+    : '';
+
+  // ── Action buttons ──
+  const iApproved = pending && !!approvals[currentUser?.uid];
+  let actionBtns;
+  if (solved) {
+    actionBtns = `<button class="act-btn act-reopen" onclick="reopenTask('${t.id}')">Reopen</button>
+                  <button class="act-btn act-delete" onclick="deleteTask('${t.id}')">Delete</button>`;
+  } else if (pending) {
+    actionBtns = !iApproved
+      ? `<button class="act-btn act-approve" onclick="approveTask('${t.id}')">Approve</button>
+         <button class="act-btn act-reopen"  onclick="reopenTask('${t.id}')">Reopen</button>
+         <button class="act-btn act-delete"  onclick="deleteTask('${t.id}')">Delete</button>`
+      : `<span style="font-size:.72rem;color:var(--success);font-weight:700;padding:.36rem .4rem">You approved ✓</span>
+         <button class="act-btn act-reopen"  onclick="reopenTask('${t.id}')">Reopen</button>
+         <button class="act-btn act-delete"  onclick="deleteTask('${t.id}')">Delete</button>`;
+  } else {
+    actionBtns = `<button class="act-btn act-solve" onclick="solveTask('${t.id}')">Mark Solved</button>
+                  <button class="act-btn act-delete" onclick="deleteTask('${t.id}')">Delete</button>`;
+  }
 
   return `
-<div class="task-card ${solved?'solved':''} ${overdue&&!solved?'overdue':''}" id="card_${t.id}" data-id="${t.id}">
+<div class="task-card ${solved?'solved':''} ${pending?'pending':''} ${overdue&&!solved&&!pending?'overdue':''}" id="card_${t.id}" data-id="${t.id}">
   <div class="task-card-summary">
-    <button class="status-btn" onclick="statusClick(event,'${t.id}')" title="${solved?'Reopen':'Mark solved'}">${solved?'✓':''}</button>
+    <button class="status-btn" onclick="statusClick(event,'${t.id}')" title="${solved?'Reopen':pending?'Pending approval':'Mark solved'}">${solved?'✓':pending?'◑':''}</button>
     <div class="task-summary-body">
       <div class="task-title">${esc(t.title)}</div>
-      <div class="task-meta">${dateLabel}<span class="assignee-badge">${esc(userName(t.assignee))}</span></div>
+      <div class="task-meta">${dateLabel}<span class="assignee-badge">${esc(userName(t.assignee))}</span>${pendingIndicator}</div>
     </div>
     <div class="task-card-indicators">
       ${msgBadge}
       <span class="chevron">▾</span>
     </div>
   </div>
+  ${approvalBarHTML}
 
   <div class="task-detail">
     <div class="detail-form">
@@ -891,11 +939,14 @@ function collapseCard(id) {
 window.statusClick = function(e, id) {
   e.stopPropagation();
   const t = tasks.find(x=>x.id===id); if(!t) return;
-  if (t.status==='open') {
+  if (t.status==='solved') {
+    reopenTask(id);
+  } else if (t.status==='pending') {
+    // clicking the circle on a pending task opens it to show approve button
+    expandCard(id, true);
+  } else {
     expandCard(id, true);
     setTimeout(()=>document.getElementById(`dNote_${id}`)?.focus(), 120);
-  } else {
-    reopenTask(id);
   }
 };
 
@@ -916,18 +967,47 @@ window.saveTask = async function(id, silent=false) {
 };
 
 window.solveTask = async function(id) {
+  if (!currentUser) return;
   const solution = document.getElementById(`dNote_${id}`)?.value.trim()||'';
+  const t = tasks.find(x=>x.id===id); if (!t) return;
+  const allUids = Object.keys(users);
+  // Record current user's approval and move to pending
+  const approvals = { ...(t.approvals||{}), [currentUser.uid]: true };
+  const allApproved = allUids.every(uid => approvals[uid]);
   try {
-    await updateDoc(doc(db,'tasks',id), { status:'solved', solution, solvedAt:serverTimestamp() });
-    showToast('Task solved ✓');
-    const st = tasks.find(x=>x.id===id);
-    if (st) notifyOthers(id, st.title, 'solved', `Marked solved by ${currentUser.displayName||currentUser.email||'Someone'}`);
+    if (allApproved) {
+      await updateDoc(doc(db,'tasks',id), { status:'solved', solution, approvals, solvedAt:serverTimestamp() });
+      showToast('Task solved ✓');
+      notifyOthers(id, t.title, 'solved', `Marked solved by ${currentUser.displayName||currentUser.email||'Someone'}`);
+    } else {
+      await updateDoc(doc(db,'tasks',id), { status:'pending', solution, approvals });
+      showToast('Marked solved — awaiting other approval');
+      notifyOthers(id, t.title, 'approval', `${currentUser.displayName||currentUser.email||'Someone'} marked solved — your approval needed`);
+    }
+  } catch(e) { showToast('Update failed'); console.error(e); }
+};
+
+window.approveTask = async function(id) {
+  if (!currentUser) return;
+  const t = tasks.find(x=>x.id===id); if (!t) return;
+  const allUids = Object.keys(users);
+  const approvals = { ...(t.approvals||{}), [currentUser.uid]: true };
+  const allApproved = allUids.every(uid => approvals[uid]);
+  try {
+    if (allApproved) {
+      await updateDoc(doc(db,'tasks',id), { status:'solved', approvals, solvedAt:serverTimestamp() });
+      showToast('Task approved and solved ✓');
+      notifyOthers(id, t.title, 'solved', `Approved and solved by ${currentUser.displayName||currentUser.email||'Someone'}`);
+    } else {
+      await updateDoc(doc(db,'tasks',id), { approvals });
+      showToast('Approved');
+    }
   } catch(e) { showToast('Update failed'); console.error(e); }
 };
 
 window.reopenTask = async function(id) {
   try {
-    await updateDoc(doc(db,'tasks',id), { status:'open', solvedAt:null });
+    await updateDoc(doc(db,'tasks',id), { status:'open', solvedAt:null, approvals:{} });
     showToast('Task reopened');
   } catch(e) { showToast('Update failed'); console.error(e); }
 };
@@ -1078,9 +1158,9 @@ function renderNotifList(notifs) {
     list.innerHTML = '<div class="notif-empty">No new notifications</div>';
     return;
   }
-  const icons = { chat: '💬', assigned: '👤', solved: '✅', reopened: '↩' };
+  const icons = { chat: '💬', assigned: '👤', solved: '✅', reopened: '↩', approval: '✦' };
   list.innerHTML = notifs.map(n => {
-    const icon = icons[n.type] || '✦';
+    const icon = icons[n.type] || '🔔';
     const time = n.createdAt ? fmtTimeAgo(n.createdAt) : '';
     return `<div class="notif-item" onclick="notifClick('${n.id}','${n.taskId}')">
       <span class="notif-icon">${icon}</span>
