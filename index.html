@@ -723,7 +723,6 @@ function getVisible() {
     if (activeFilter==='solved' && t.status!=='solved') return false;
     const a = t.assignee||'__unassigned__';
     if (assigneeFilter!=='all' && a!==assigneeFilter) return false;
-    if (t.dueDate && t.dueDate>today) return false;
     return true;
   });
 }
