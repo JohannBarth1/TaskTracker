@@ -1280,11 +1280,19 @@ function goalEditFormHTML(g) {
   const ownerOptions = Object.entries(users)
     .map(([uid,u]) => `<option value="${uid}" ${uid===g.uid?'selected':''}>${esc(u.displayName || u.email || 'Someone')}</option>`)
     .join('');
+  const currentGoalTeamId = g.teamId || DEFAULT_TEAM_ID;
+  const teamOptions = myTeamEntries()
+    .map(([id, team]) => `<option value="${id}" ${id===currentGoalTeamId?'selected':''}>${esc(team.name)}</option>`)
+    .join('');
   return `
     <div class="goal-edit-form" onclick="event.stopPropagation()">
       <div class="edit-row">
         <label>Owner</label>
         <select id="edit-owner-${g.id}">${ownerOptions}</select>
+      </div>
+      <div class="edit-row">
+        <label>Team</label>
+        <select id="edit-team-${g.id}">${teamOptions}</select>
       </div>
       <div class="edit-row">
         <label>Date</label>
@@ -1335,6 +1343,7 @@ window.toggleEditGoal = function(id) {
 
 window.saveGoalEdit = async function(id) {
   const uid        = document.getElementById(`edit-owner-${id}`).value;
+  const teamId     = document.getElementById(`edit-team-${id}`).value;
   const date       = document.getElementById(`edit-date-${id}`).value;
   const slot       = document.getElementById(`edit-slot-${id}`).value;
   const visibility = document.getElementById(`edit-vis-${id}`).value;
@@ -1343,8 +1352,9 @@ window.saveGoalEdit = async function(id) {
   if (!date) { showToast('Pick a date'); return; }
   if (date < todayStr()) { showToast('Pick today or a future date — past days are locked'); return; }
   if (isWeekend(date)) { showToast('Pick a weekday — Mon to Fri only'); return; }
+  if (!teamId) { showToast("You're not a member of any team"); return; }
   await updateDoc(doc(db, 'goals', id), {
-    uid, date, slot, visibility, rolled: false,
+    uid, teamId, date, slot, visibility, rolled: false,
     effort: effortRaw ? Number(effortRaw) : null,
     reward: rewardRaw ? Number(rewardRaw) : null
   });
