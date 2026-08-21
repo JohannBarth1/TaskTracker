@@ -1071,6 +1071,7 @@ window.addGoal = async function(dateStr, slot) {
   const text = (input.value || '').trim();
   if (!text) return;
   input.value = '';
+  input.focus(); // stay ready for the next goal; render()'s focus-restore keeps this held through the Firestore round-trip
   await addDoc(collection(db, 'goals'), {
     text, date: dateStr, slot,
     uid: currentUser.uid,
@@ -1095,6 +1096,7 @@ window.addGoalFromMatrix = async function() {
   const text = (input.value || '').trim();
   if (!text) return;
   input.value = '';
+  input.focus();
   const date = isWeekend(todayStr()) ? nextWeekday(todayStr()) : todayStr();
   await addDoc(collection(db, 'goals'), {
     text, date, slot: 'morning',
@@ -1203,7 +1205,27 @@ function render() {
   const viewHTML = currentView === 'today' ? renderTodayView(selectedDate, wd)
                   : currentView === 'week'  ? renderWeekView(wd)
                   : renderMatrixView();
+
+  // render() runs on every Firestore update — yours, anyone else's, or the
+  // automatic rollover check — which otherwise wipes out whatever input
+  // you're mid-typing in, since innerHTML destroys and recreates it. Save
+  // focus state on the active input beforehand and restore it afterward
+  // (matched by id, so it only reapplies to the same field if it still exists).
+  const active = document.activeElement;
+  const restore = (active && active.id && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA'))
+    ? { id: active.id, value: active.value, start: active.selectionStart, end: active.selectionEnd }
+    : null;
+
   board.innerHTML = banner + viewHTML;
+
+  if (restore) {
+    const el = document.getElementById(restore.id);
+    if (el) {
+      el.value = restore.value;
+      el.focus();
+      try { el.setSelectionRange(restore.start, restore.end); } catch (e) { /* not all input types support this */ }
+    }
+  }
 }
 
 function renderTodayView(dateStr, wd) {
