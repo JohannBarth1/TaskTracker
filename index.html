@@ -244,31 +244,38 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .past-note { text-align: center; font-size: .68rem; color: var(--muted); font-style: italic; margin: -.4rem 0 1rem; }
 
 /* ── EDIT PANEL (owner / date / slot / visibility) ── */
-.goal-edit-form { margin-top: .55rem; padding: .55rem .6rem; background: var(--panel); border-radius: 6px; display: flex; flex-direction: column; gap: .4rem; }
-.edit-row { display: flex; align-items: center; gap: .5rem; }
-.edit-row label { font-size: .58rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; width: 46px; flex-shrink: 0; }
-.edit-row select, .edit-row input { flex: 1; padding: .32rem .45rem; border: 1px solid var(--border); border-radius: 999px; font-family: 'Lato', sans-serif; font-size: .8rem; background: var(--warm-white); outline: none; }
+.goal-edit-form { margin-top: .55rem; padding: .55rem .6rem; background: var(--panel); border-radius: 6px; display: flex; flex-direction: column; gap: .5rem; }
+/* Grid (not flex) so the label column stays a fixed width even when its
+   row's content wraps — this is what actually keeps every row's controls
+   lined up under one another, rather than drifting per-row. */
+.edit-row { display: grid; grid-template-columns: 58px 1fr; align-items: center; column-gap: .5rem; }
+.edit-row label { font-size: .62rem; color: var(--muted); font-weight: 700; white-space: nowrap; }
+.edit-row select, .edit-row input { width: 100%; padding: .32rem .45rem; border: 1px solid var(--border); border-radius: 999px; font-family: 'Lato', sans-serif; font-size: .8rem; background: var(--warm-white); outline: none; }
 .edit-row select:focus, .edit-row input:focus { border-color: var(--gold); }
-.edit-row .pill-toggle-group { flex: 1; }
 .edit-actions { display: flex; gap: .4rem; justify-content: flex-end; }
 .gact.save { background: var(--gold); color: #fff; border-color: var(--gold); }
 .gact.save:hover { background: #a87820; color: #fff; }
 
+/* Slot + Visibility share one compact row instead of two full-width ones */
+.edit-row-split { display: flex; gap: .8rem; }
+.split-col { flex: 1; display: flex; flex-direction: column; gap: .25rem; min-width: 0; }
+.split-label { font-size: .56rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+
 /* Pill toggles — used for Slot / Visibility / Effort / Reward in the edit form */
 .pill-toggle-group { display: flex; gap: .3rem; flex-wrap: wrap; }
 .pill-toggle {
-  font-family: 'Lato', sans-serif; font-size: .72rem; font-weight: 700;
-  padding: .3rem .7rem; border-radius: 999px; border: 1px solid var(--border);
+  font-family: 'Lato', sans-serif; font-size: .74rem; font-weight: 700;
+  padding: .3rem .65rem; border-radius: 999px; border: 1px solid var(--border);
   background: var(--warm-white); color: var(--muted); cursor: pointer; transition: all .15s;
 }
 .pill-toggle:hover { border-color: var(--gold); color: var(--brown); }
 .pill-toggle.active { background: var(--gold); color: #fff; border-color: var(--gold); }
 
 /* Priority box — visually groups Effort + Reward as one related unit */
-.priority-box { border: 1px solid var(--border); border-radius: 10px; padding: .55rem .65rem; background: var(--panel); display: flex; flex-direction: column; gap: .4rem; }
-.priority-box-hdr { font-size: .56rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
-.priority-box-row { display: flex; align-items: center; gap: .5rem; }
-.priority-box-label { font-size: .7rem; font-weight: 700; color: var(--brown); width: 46px; flex-shrink: 0; }
+.priority-box { border: 1px solid var(--border); border-radius: 10px; padding: .5rem .6rem; background: var(--panel); display: flex; flex-direction: column; gap: .4rem; }
+.priority-box-hdr { font-size: .56rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.priority-box-row { display: grid; grid-template-columns: 50px 1fr; align-items: center; column-gap: .5rem; }
+.priority-box-label { font-size: .7rem; font-weight: 700; color: var(--brown); }
 
 /* ── DRAG & DROP ── */
 .goal-card[draggable="true"] { cursor: grab; }
@@ -1296,17 +1303,28 @@ function goalCardHTML(g) {
 // Small pill-toggle-group builder shared by every either/or field in the
 // edit form. Renders a hidden input (read by saveGoalEdit, same as a
 // <select> would be) plus a row of pill buttons that set its value.
-function pillGroupHTML(inputId, options, current) {
+// Pill-toggle-group builder. Mandatory groups (slot, visibility) always
+// keep exactly one option active. Optional groups (effort, reward) let you
+// tap the already-active pill again to clear it back to unset — no
+// separate "not set" button needed.
+function pillGroupHTML(inputId, options, current, optional) {
   const cur = current ?? '';
   return `
-    <input type="hidden" id="${inputId}" value="${esc(cur)}"/>
+    <input type="hidden" id="${inputId}" value="${esc(cur)}" data-optional="${optional ? '1' : '0'}"/>
     <div class="pill-toggle-group">
-      ${options.map(o => `<button type="button" class="pill-toggle ${String(o.value)===String(cur)?'active':''}" onclick="setPillValue('${inputId}','${o.value}',this)">${o.label}</button>`).join('')}
+      ${options.map(o => `<button type="button" class="pill-toggle ${String(o.value)===String(cur)?'active':''}" title="${esc(o.title)}" onclick="setPillValue('${inputId}','${o.value}',this)">${o.label}</button>`).join('')}
     </div>
   `;
 }
 window.setPillValue = function(inputId, value, btn) {
-  document.getElementById(inputId).value = value;
+  const input = document.getElementById(inputId);
+  const optional = input.dataset.optional === '1';
+  if (optional && btn.classList.contains('active')) {
+    input.value = '';
+    Array.from(btn.parentElement.children).forEach(b => b.classList.remove('active'));
+    return;
+  }
+  input.value = value;
   Array.from(btn.parentElement.children).forEach(b => b.classList.toggle('active', b === btn));
 };
 
@@ -1321,34 +1339,36 @@ function goalEditFormHTML(g) {
   return `
     <div class="goal-edit-form" onclick="event.stopPropagation()">
       <div class="edit-row">
-        <label>Team</label>
+        <label>👥 Team</label>
         <select id="edit-team-${g.id}">${teamOptions}</select>
       </div>
-      <div class="edit-row">
-        <label>Slot</label>
-        ${pillGroupHTML(`edit-slot-${g.id}`, [{value:'morning',label:'🌅 Morning'},{value:'afternoon',label:'🪑 Afternoon'}], g.slot || 'morning')}
-      </div>
-      <div class="edit-row">
-        <label>Visible</label>
-        ${pillGroupHTML(`edit-vis-${g.id}`, [{value:'public',label:'🌐 Public'},{value:'private',label:'🔒 Private'}], g.visibility === 'private' ? 'private' : 'public')}
+      <div class="edit-row-split">
+        <div class="split-col">
+          <div class="split-label">Slot</div>
+          ${pillGroupHTML(`edit-slot-${g.id}`, [{value:'morning',label:'🌅',title:'Morning'},{value:'afternoon',label:'🪑',title:'Afternoon'}], g.slot || 'morning', false)}
+        </div>
+        <div class="split-col">
+          <div class="split-label">Visible</div>
+          ${pillGroupHTML(`edit-vis-${g.id}`, [{value:'public',label:'🌐',title:'Public — whole team'},{value:'private',label:'🔒',title:'Private — just you'}], g.visibility === 'private' ? 'private' : 'public', false)}
+        </div>
       </div>
       <div class="priority-box">
-        <div class="priority-box-hdr">Priority</div>
+        <div class="priority-box-hdr">🎯 Priority <span style="text-transform:none;letter-spacing:0;font-weight:400">— tap again to clear</span></div>
         <div class="priority-box-row">
           <span class="priority-box-label">Effort</span>
-          ${pillGroupHTML(`edit-effort-${g.id}`, [{value:'',label:'—'},{value:'1',label:'Low'},{value:'2',label:'High'}], g.effort ? String(g.effort) : '')}
+          ${pillGroupHTML(`edit-effort-${g.id}`, [{value:'1',label:'🙂 Low',title:'Low effort'},{value:'2',label:'💪 High',title:'High effort'}], g.effort ? String(g.effort) : '', true)}
         </div>
         <div class="priority-box-row">
           <span class="priority-box-label">Reward</span>
-          ${pillGroupHTML(`edit-reward-${g.id}`, [{value:'',label:'—'},{value:'1',label:'Low'},{value:'2',label:'High'}], g.reward ? String(g.reward) : '')}
+          ${pillGroupHTML(`edit-reward-${g.id}`, [{value:'1',label:'🌱 Low',title:'Low reward'},{value:'2',label:'💎 High',title:'High reward'}], g.reward ? String(g.reward) : '', true)}
         </div>
       </div>
       <div class="edit-row">
-        <label>Owner</label>
+        <label>🙋 Owner</label>
         <select id="edit-owner-${g.id}">${ownerOptions}</select>
       </div>
       <div class="edit-row">
-        <label>Date</label>
+        <label>📅 Date</label>
         <input type="date" id="edit-date-${g.id}" value="${g.date}" min="${todayStr()}"/>
       </div>
       <div class="edit-actions">
