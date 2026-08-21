@@ -68,7 +68,8 @@ header {
   display: flex; align-items: center; justify-content: space-between;
   border-bottom: 3px solid var(--gold);
   flex-shrink: 0; position: sticky; top: 0; z-index: 40;
-  overflow: hidden;
+  /* overflow must stay visible — the avatar dropdown is absolutely
+     positioned and extends below the header's own box */
 }
 .brand { display: flex; align-items: baseline; gap: .6rem; white-space: nowrap; flex-shrink: 0; }
 .brand-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; color: var(--light-brown); }
@@ -256,6 +257,7 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .goal-card.dragging { opacity: .35; }
 .goal-list { border-radius: 6px; transition: background .12s, outline .12s; min-height: 8px; }
 .goal-list.drag-over { background: var(--light-brown); outline: 2px dashed var(--gold); outline-offset: 2px; }
+.goal-list.drag-over-blocked, .wk-slot-body.drag-over-blocked { background: #f5dede; outline: 2px dashed var(--danger); outline-offset: 2px; cursor: not-allowed; }
 .wk-slot-body { border-radius: 4px; transition: background .12s, outline .12s; min-height: 6px; }
 .wk-slot-body.drag-over { background: var(--light-brown); outline: 2px dashed var(--gold); outline-offset: 1px; }
 .wk-goal[draggable="true"] { cursor: grab; }
@@ -1116,7 +1118,7 @@ function slotSectionHTML(dateStr, slot, icon, label) {
         <div class="slot-line"></div>
       </div>
       <div class="goal-list"
-           ondragover="onSlotDragOver(event)"
+           ondragover="onSlotDragOver(event,'${dateStr}')"
            ondragleave="onSlotDragLeave(event)"
            ondrop="onSlotDrop(event,'${dateStr}','${slot}')">
         ${list.length ? list.map(goalCardHTML).join('') : `<div class="empty-slot">Nothing planned yet — or drag a goal here</div>`}
@@ -1172,7 +1174,7 @@ function goalEditFormHTML(g) {
       </div>
       <div class="edit-row">
         <label>Date</label>
-        <input type="date" id="edit-date-${g.id}" value="${g.date}"/>
+        <input type="date" id="edit-date-${g.id}" value="${g.date}" min="${todayStr()}"/>
       </div>
       <div class="edit-row">
         <label>Slot</label>
@@ -1207,6 +1209,7 @@ window.saveGoalEdit = async function(id) {
   const slot       = document.getElementById(`edit-slot-${id}`).value;
   const visibility = document.getElementById(`edit-vis-${id}`).value;
   if (!date) { showToast('Pick a date'); return; }
+  if (date < todayStr()) { showToast('Pick today or a future date — past days are locked'); return; }
   if (isWeekend(date)) { showToast('Pick a weekday — Mon to Fri only'); return; }
   await updateDoc(doc(db, 'goals', id), { uid, date, slot, visibility, rolled: false });
   editingGoalId = null;
@@ -1225,16 +1228,25 @@ window.onGoalDragStart = function(e, id) {
 window.onGoalDragEnd = function(e) {
   e.currentTarget.classList.remove('dragging');
 };
-window.onSlotDragOver = function(e) {
+function isPastDate(dateStr) { return dateStr < todayStr(); }
+window.onSlotDragOver = function(e, dateStr) {
   e.preventDefault();
+  if (dateStr && isPastDate(dateStr)) {
+    e.dataTransfer.dropEffect = 'none';
+    e.currentTarget.classList.add('drag-over-blocked');
+    return;
+  }
   e.currentTarget.classList.add('drag-over');
 };
 window.onSlotDragLeave = function(e) {
   e.currentTarget.classList.remove('drag-over');
+  e.currentTarget.classList.remove('drag-over-blocked');
 };
 window.onSlotDrop = async function(e, dateStr, slot) {
   e.preventDefault();
   e.currentTarget.classList.remove('drag-over');
+  e.currentTarget.classList.remove('drag-over-blocked');
+  if (isPastDate(dateStr)) { showToast("Can't move goals to a past day"); return; }
   const id = e.dataTransfer.getData('text/plain');
   if (!id) return;
   const g = goals.find(x => x.id === id);
@@ -1251,6 +1263,7 @@ window.onGoalCardDrop = async function(e, targetId) {
   const target = goals.find(x => x.id === targetId);
   const source = goals.find(x => x.id === sourceId);
   if (!target || !source) return;
+  if (isPastDate(target.date)) { showToast("Can't move goals to a past day"); return; }
   const sameList = source.date === target.date && source.slot === target.slot;
   let list = goalsFor(target.date, target.slot).filter(x => x.id !== sourceId);
   const idx = list.findIndex(x => x.id === targetId);
@@ -1294,7 +1307,7 @@ function weekSlotHTML(dateStr, slot, icon) {
     <div>
       <div class="wk-slot-label">${icon} ${slot}</div>
       <div class="wk-slot-body"
-           ondragover="onSlotDragOver(event)"
+           ondragover="onSlotDragOver(event,'${dateStr}')"
            ondragleave="onSlotDragLeave(event)"
            ondrop="onSlotDrop(event,'${dateStr}','${slot}')">
         ${list.length ? list.map(g => `
