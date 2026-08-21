@@ -121,6 +121,19 @@ header {
 .team-switch-btn:hover { background: var(--light-brown); }
 .team-chevron { font-size: .6rem; color: var(--muted); }
 .team-desc { font-size: .68rem; color: var(--muted); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.team-members-strip { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.member-more { font-size: .58rem; color: var(--muted); font-weight: 700; background: var(--light-brown); border-radius: 8px; padding: 1px 5px; }
+
+/* ── PERSONAL BOARD MODE ── */
+body.scope-mine { background: #f1e6d4; }
+body.scope-mine .presence-bar, body.scope-mine .toolbar { background: #ece0cb; }
+.scope-banner {
+  background: var(--brown); color: var(--light-brown); text-align: center;
+  font-family: 'Playfair Display', serif; font-style: italic; font-size: .88rem;
+  padding: .55rem 1rem; border-radius: 6px; margin-bottom: 1rem; letter-spacing: .02em;
+}
+.team-chip-mini { font-size: .58rem; padding: 1px 7px; border-radius: 8px; background: var(--panel); border: 1px solid var(--border); color: var(--brown); font-weight: 700; white-space: nowrap; }
+body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .team-menu {
   display: none; position: absolute; top: calc(100% + 6px); left: 0;
   width: 250px; background: var(--warm-white); border: 1px solid var(--border);
@@ -424,6 +437,7 @@ header {
     </div>
   </div>
   <div class="team-desc" id="teamDescLabel"></div>
+  <div class="team-members-strip" id="teamMembersStrip"></div>
 </div>
 
 <!-- Toolbar -->
@@ -476,8 +490,8 @@ header {
 import { initializeApp }   from "https://www.gstatic.com/firebasejs/11.8.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut }
                            from "https://www.gstatic.com/firebasejs/11.8.0/firebase-auth.js";
-import { getFirestore, collection, doc, getDoc, onSnapshot, addDoc, updateDoc,
-         deleteDoc, setDoc, serverTimestamp, arrayUnion }
+import { getFirestore, collection, doc, getDoc, getDocs, onSnapshot, addDoc, updateDoc,
+         deleteDoc, setDoc, serverTimestamp, arrayUnion, query, where }
                            from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -566,6 +580,7 @@ onAuthStateChanged(auth, async user => {
     }, { merge: true });
     currentTeamId = localStorage.getItem(`sb_team_${user.uid}`) || DEFAULT_TEAM_ID;
     await ensureDefaultTeamMembership();
+    await acceptPendingInvites();
     subscribeToUsers();
     subscribeToTeams();
     subscribeToGoals();
@@ -596,6 +611,58 @@ async function ensureDefaultTeamMembership() {
       await updateDoc(ref, { memberUids: arrayUnion(currentUser.uid) });
     }
   } catch (e) { console.error('ensureDefaultTeamMembership failed', e); }
+}
+
+// ── INVITES ───────────────────────────────────────────────
+// There's no email-sending backend here — an "invite" just leaves a
+// pending record matched on email. If that person later signs in with
+// Google using that same email address, they're auto-added to the team
+// on load. The inviter still has to tell them to go sign in; nothing
+// gets emailed or pushed to them automatically.
+async function acceptPendingInvites() {
+  try {
+    const q = query(collection(db, 'invites'), where('email', '==', (currentUser.email || '').toLowerCase()), where('status', '==', 'pending'));
+    const snap = await getDocs(q);
+    if (snap.empty) return;
+    let joined = 0;
+    for (const d of snap.docs) {
+      const inv = d.data();
+      await updateDoc(doc(db, 'teams', inv.teamId), { memberUids: arrayUnion(currentUser.uid) });
+      await updateDoc(doc(db, 'invites', d.id), { status: 'accepted', acceptedAt: serverTimestamp() });
+      joined++;
+    }
+    if (joined) showToast(`Joined ${joined} team${joined > 1 ? 's' : ''} via invite`);
+  } catch (e) { console.error('acceptPendingInvites failed', e); }
+}
+
+window.sendInvite = async function(teamId) {
+  const input = document.getElementById('inviteEmailInput');
+  const email = (input.value || '').trim().toLowerCase();
+  if (!email || !email.includes('@')) { showToast('Enter a valid email'); return; }
+  await addDoc(collection(db, 'invites'), {
+    teamId, email,
+    invitedBy: currentUser.uid,
+    invitedByName: currentUser.displayName || currentUser.email,
+    status: 'pending',
+    createdAt: serverTimestamp()
+  });
+  input.value = '';
+  showToast(`Invite recorded for ${email} — have them sign in to join`);
+  refreshPendingInvitesList(teamId);
+};
+
+async function refreshPendingInvitesList(teamId) {
+  const el = document.getElementById('pendingInvitesList');
+  if (!el) return;
+  try {
+    const q = query(collection(db, 'invites'), where('teamId', '==', teamId), where('status', '==', 'pending'));
+    const snap = await getDocs(q);
+    el.innerHTML = snap.empty
+      ? '<div style="font-size:.7rem;color:var(--muted);font-style:italic">No pending invites</div>'
+      : snap.docs.map(d => `<div style="font-size:.74rem;padding:.15rem 0">${esc(d.data().email)} <span style="color:var(--muted)">— pending</span></div>`).join('');
+  } catch (e) {
+    el.innerHTML = '<div style="font-size:.7rem;color:var(--muted);font-style:italic">Couldn\'t load invites</div>';
+  }
 }
 
 // ── PRESENCE ──────────────────────────────────────────────
@@ -697,10 +764,18 @@ function myTeamEntries() {
   const uid = currentUser && currentUser.uid;
   return Object.entries(teams).filter(([, t]) => (t.memberUids || []).includes(uid));
 }
+function teamName(teamId) {
+  const id = teamId || DEFAULT_TEAM_ID;
+  return (teams[id] && teams[id].name) || 'Room Planning Team';
+}
 function renderTeamBar() {
   const t = teams[currentTeamId];
   document.getElementById('teamNameLabel').textContent = t ? t.name : 'Room Planning Team';
   document.getElementById('teamDescLabel').textContent = t && t.description ? t.description : '';
+  const memberUids = (t && t.memberUids) || [];
+  const stripEl = document.getElementById('teamMembersStrip');
+  stripEl.innerHTML = memberUids.slice(0, 6).map(uid => `<span title="${esc(userName(uid))}">${avatarHTML(uid)}</span>`).join('')
+    + (memberUids.length > 6 ? `<span class="member-more">+${memberUids.length - 6}</span>` : '');
   const listEl = document.getElementById('teamMenuList');
   const mine = myTeamEntries();
   listEl.innerHTML = mine.length
@@ -770,11 +845,28 @@ window.openJoinTeamModal = function() {
 
 window.openTeamSettingsModal = function() {
   document.getElementById('teamMenu').classList.remove('open');
-  const t = teams[currentTeamId] || { name: '', description: '' };
+  const t = teams[currentTeamId] || { name: '', description: '', memberUids: [] };
+  const membersHTML = (t.memberUids || []).map(uid => `
+    <div style="display:flex;align-items:center;gap:.45rem;padding:.2rem 0">
+      ${avatarHTML(uid)}<span style="font-size:.8rem">${esc(userName(uid))}</span>
+      ${uid === t.ownerUid ? '<span style="font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">owner</span>' : ''}
+    </div>
+  `).join('') || '<div style="font-size:.72rem;color:var(--muted)">No members</div>';
+
   openModal('Board Settings', `
     <div class="form-row"><label>Team Name</label><input id="editTeamName" type="text" value="${esc(t.name)}"/></div>
     <div class="form-row"><label>Description</label><textarea id="editTeamDesc">${esc(t.description||'')}</textarea></div>
-    <div class="form-note">Team ID (share this so others can join):<br/><code>${esc(currentTeamId)}</code></div>
+    <div class="form-row"><label>Members (${(t.memberUids||[]).length})</label>${membersHTML}</div>
+    <div class="form-row">
+      <label>Invite by Email</label>
+      <div style="display:flex;gap:.4rem">
+        <input id="inviteEmailInput" type="email" placeholder="teammate@email.com" style="flex:1"/>
+        <button class="btn btn-save" style="flex-shrink:0" onclick="sendInvite('${currentTeamId}')">Invite</button>
+      </div>
+      <div class="form-note" style="margin-top:.3rem">No email gets sent — they just need to sign in with Google using this address, and they'll be added automatically.</div>
+      <div id="pendingInvitesList" style="margin-top:.4rem">Loading…</div>
+    </div>
+    <div class="form-note">Team ID (share this so others can join by pasting it):<br/><code>${esc(currentTeamId)}</code></div>
   `, async () => {
     const name = document.getElementById('editTeamName').value.trim();
     const description = document.getElementById('editTeamDesc').value.trim();
@@ -783,6 +875,7 @@ window.openTeamSettingsModal = function() {
     closeModal();
     showToast('Board updated');
   });
+  refreshPendingInvitesList(currentTeamId);
 };
 
 // ── GOALS ─────────────────────────────────────────────────
@@ -840,16 +933,17 @@ async function rolloverOverdueGoals() {
 
 function goalsFor(dateStr, slot) {
   const myUid = currentUser && currentUser.uid;
-  return goals
-    .filter(g => g.date === dateStr && g.slot === slot)
-    .filter(g => (g.teamId || DEFAULT_TEAM_ID) === currentTeamId)
-    .filter(g => {
-      const mine = g.uid === myUid;
-      const visible = mine || g.visibility !== 'private'; // private goals only visible to their owner
-      if (!visible) return false;
-      return scopeFilter === 'team' ? true : mine;
-    })
-    .sort((a,b) => (a.order ?? a.createdAtMs ?? 0) - (b.order ?? b.createdAtMs ?? 0));
+  let list = goals.filter(g => g.date === dateStr && g.slot === slot);
+  if (scopeFilter === 'mine') {
+    // My Board shows every goal you own, across every team you're in —
+    // not just the currently selected team.
+    list = list.filter(g => g.uid === myUid);
+  } else {
+    list = list
+      .filter(g => (g.teamId || DEFAULT_TEAM_ID) === currentTeamId)
+      .filter(g => g.uid === myUid || g.visibility !== 'private'); // private goals only visible to their owner
+  }
+  return list.sort((a,b) => (a.order ?? a.createdAtMs ?? 0) - (b.order ?? b.createdAtMs ?? 0));
 }
 
 window.addGoal = async function(dateStr, slot) {
@@ -903,6 +997,7 @@ window.setScope = function(s) {
   scopeFilter = s;
   document.getElementById('scopeTeamBtn').classList.toggle('active', s === 'team');
   document.getElementById('scopeMineBtn').classList.toggle('active', s === 'mine');
+  document.body.classList.toggle('scope-mine', s === 'mine');
   render();
 };
 
@@ -946,7 +1041,10 @@ function render() {
   document.getElementById('todayJumpBtn').style.display = atHome ? 'none' : '';
 
   const board = document.getElementById('board');
-  board.innerHTML = currentView === 'today' ? renderTodayView(selectedDate, wd) : renderWeekView(wd);
+  const banner = scopeFilter === 'mine'
+    ? `<div class="scope-banner">🔒 My Board — every goal you own, across all your teams</div>`
+    : '';
+  board.innerHTML = banner + (currentView === 'today' ? renderTodayView(selectedDate, wd) : renderWeekView(wd));
 }
 
 function renderTodayView(dateStr, wd) {
@@ -1024,6 +1122,7 @@ function goalCardHTML(g) {
           <span class="goal-owner">${avatarHTML(g.uid)}<span class="owner-name">${esc(userName(g.uid))}</span></span>
           ${isPrivate ? `<span class="private-badge">🔒 private</span>` : ''}
           ${g.rolled ? `<span class="rolled-badge">↻ rolled</span>` : ''}
+          ${scopeFilter === 'mine' ? `<span class="team-chip-mini">${esc(teamName(g.teamId))}</span>` : ''}
         </div>
         ${editing ? goalEditFormHTML(g) : ''}
       </div>
