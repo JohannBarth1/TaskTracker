@@ -141,6 +141,26 @@ header {
   padding: 4px 10px; cursor: pointer; flex-shrink: 0; transition: all .15s;
 }
 .today-jump:hover { background: var(--rust); color: #fff; }
+.scope-toggle { display: flex; gap: .2rem; flex-shrink: 0; }
+
+/* ── DAY PICKER (Today view) ── */
+.day-picker { display: flex; justify-content: center; gap: .35rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.daypill {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  min-width: 46px; padding: .35rem .3rem .3rem; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--warm-white); cursor: pointer;
+  transition: all .15s; position: relative;
+}
+.daypill:hover { background: var(--light-brown); }
+.daypill.active { background: var(--ink); border-color: var(--ink); }
+.daypill.active .daypill-name, .daypill.active .daypill-date { color: var(--light-brown); }
+.daypill.is-today:not(.active) { border-color: var(--rust); border-width: 2px; }
+.daypill-name { font-size: .6rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.daypill-date { font-family: 'Playfair Display', serif; font-size: 1rem; color: var(--brown); }
+.daypill.active .daypill-date { color: var(--light-brown); }
+.daypill-tag { font-size: .48rem; letter-spacing: .08em; text-transform: uppercase; color: var(--rust); font-weight: 900; }
+.daypill.active .daypill-tag { color: var(--gold); }
+.past-note { text-align: center; font-size: .68rem; color: var(--muted); font-style: italic; margin: -.4rem 0 1rem; }
 
 /* ── MAIN ── */
 .main { flex: 1; padding: 1rem 1rem 5rem; max-width: 980px; width: 100%; margin: 0 auto; }
@@ -290,6 +310,10 @@ header {
   <button class="week-nav-btn" onclick="shiftWeek(1)" title="Next week">›</button>
   <button class="today-jump" onclick="jumpToToday()">Today</button>
   <div class="toolbar-spacer"></div>
+  <div class="scope-toggle">
+    <button class="vpill active" id="scopeTeamBtn" onclick="setScope('team')" title="Everyone's goals">Team Board</button>
+    <button class="vpill" id="scopeMineBtn" onclick="setScope('mine')" title="Just your goals, same days">My Board</button>
+  </div>
   <div class="view-toggle">
     <button class="vpill active" id="viewTodayBtn" onclick="setView('today')">Today</button>
     <button class="vpill" id="viewWeekBtn" onclick="setView('week')">This Week</button>
@@ -328,6 +352,7 @@ let goals        = [];       // all loaded goals (current week's range + buffer)
 let goalsUnsub   = null;
 let usersUnsub   = null;
 let currentView  = 'today';  // 'today' | 'week'
+let scopeFilter  = 'team';   // 'team' (everyone) | 'mine' (just current user, same days/slots)
 let weekOffset   = 0;        // 0 = this week, -1 = last week, +1 = next week
 let selectedDate = todayStr(); // used in today view; snaps to nearest weekday
 
@@ -499,6 +524,7 @@ async function rolloverOverdueGoals() {
 function goalsFor(dateStr, slot) {
   return goals
     .filter(g => g.date === dateStr && g.slot === slot)
+    .filter(g => scopeFilter === 'team' || g.uid === (currentUser && currentUser.uid))
     .sort((a,b) => (a.createdAtMs||0) - (b.createdAtMs||0));
 }
 
@@ -546,6 +572,13 @@ window.deleteGoal = async function(id) {
 };
 
 // ── VIEW SWITCHING ────────────────────────────────────────
+window.setScope = function(s) {
+  scopeFilter = s;
+  document.getElementById('scopeTeamBtn').classList.toggle('active', s === 'team');
+  document.getElementById('scopeMineBtn').classList.toggle('active', s === 'mine');
+  render();
+};
+
 window.setView = function(v) {
   currentView = v;
   document.getElementById('viewTodayBtn').classList.toggle('active', v === 'today');
@@ -569,8 +602,13 @@ window.jumpToToday = function() {
 // ── RENDER ────────────────────────────────────────────────
 function render() {
   const wd = weekDates();
+  let weekSuffix;
+  if (weekOffset === 0) weekSuffix = 'This Week';
+  else if (weekOffset === -1) weekSuffix = 'Last Week';
+  else if (weekOffset === 1) weekSuffix = 'Next Week';
+  else weekSuffix = weekOffset < 0 ? `${-weekOffset} Weeks Ago` : `${weekOffset} Weeks From Now`;
   document.getElementById('weekLabel').textContent =
-    `${fmtShort(wd[0])} – ${fmtShort(wd[4])}${weekOffset === 0 ? ' (This Week)' : ''}`;
+    `${fmtShort(wd[0])} – ${fmtShort(wd[4])} · ${weekSuffix}`;
 
   const board = document.getElementById('board');
   if (currentView === 'today') {
@@ -583,17 +621,30 @@ function render() {
 }
 
 function renderTodayView(dateStr, wd) {
+  const todayActual = todayStr();
   const dayPicker = `
-    <div class="view-toggle" style="justify-content:center;margin-bottom:.9rem;flex-wrap:wrap">
-      ${wd.map(d => `<button class="vpill ${d===dateStr?'active':''}" onclick="selectDay('${d}')">${DAY_NAMES[parseYmd(d).getDay()].slice(0,3)}</button>`).join('')}
+    <div class="day-picker">
+      ${wd.map(d => `
+        <button class="daypill ${d===dateStr?'active':''} ${d===todayActual?'is-today':''}" onclick="selectDay('${d}')" title="${fmtLong(d)}">
+          <span class="daypill-name">${DAY_NAMES[parseYmd(d).getDay()].slice(0,3)}</span>
+          <span class="daypill-date">${parseYmd(d).getDate()}</span>
+          ${d===todayActual ? '<span class="daypill-tag">Today</span>' : (d < todayActual ? '<span class="daypill-tag" style="color:var(--muted)">Past</span>' : '')}
+        </button>
+      `).join('')}
     </div>`;
+
+  const viewingPast = dateStr < todayActual;
+  const pastNote = viewingPast
+    ? `<div class="past-note">Viewing a past day — anything left unfinished here has already rolled forward to the next open day.</div>`
+    : '';
 
   return `
     ${dayPicker}
     <div class="today-hero">
       <div class="today-hero-day">${fmtLong(dateStr)}</div>
-      <div class="today-hero-sub">${dateStr === todayStr() ? 'Today' : ''}</div>
+      <div class="today-hero-sub">${dateStr === todayActual ? 'Today' : (viewingPast ? 'Past day' : 'Upcoming')}</div>
     </div>
+    ${pastNote}
     ${slotSectionHTML(dateStr, 'morning', '🌅', 'Morning')}
     ${slotSectionHTML(dateStr, 'afternoon', '🪑', 'Afternoon')}
   `;
