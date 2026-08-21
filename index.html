@@ -348,6 +348,44 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   .week-grid { grid-template-columns: 1fr; }
 }
 
+/* ── PRIORITY MATRIX (My Board only) ── */
+.matrix-intro { text-align: center; font-size: .68rem; color: var(--muted); font-style: italic; margin-bottom: 1rem; }
+.matrix-unrated { margin-bottom: 1.1rem; }
+.matrix-unrated-hdr { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
+.matrix-unrated-title { font-family: 'Playfair Display', serif; font-size: .9rem; color: var(--brown); }
+.matrix-unrated-line { flex: 1; height: 1px; background: var(--border); }
+.matrix-unrated-tray {
+  display: flex; gap: .5rem; overflow-x: auto; padding-bottom: .3rem;
+  border-radius: 6px; transition: background .12s, outline .12s; min-height: 40px;
+}
+.matrix-unrated-tray.drag-over { background: var(--light-brown); outline: 2px dashed var(--gold); }
+.matrix-unrated-empty { font-size: .74rem; color: var(--muted); font-style: italic; padding: .3rem; }
+
+.matrix-wrap { display: flex; gap: .5rem; }
+.matrix-axis-y { display: flex; flex-direction: column; justify-content: space-between; align-items: center; width: 22px; flex-shrink: 0; }
+.matrix-axis-y span { writing-mode: vertical-rl; transform: rotate(180deg); font-size: .6rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; white-space: nowrap; }
+.matrix-main { flex: 1; min-width: 0; }
+.matrix-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: .6rem; min-height: 380px; }
+.matrix-quad {
+  border: 1px solid var(--border); border-radius: 8px; padding: .6rem;
+  display: flex; flex-direction: column; gap: .4rem; overflow-y: auto;
+  transition: background .12s, outline .12s;
+}
+.matrix-quad.drag-over { outline: 2px dashed var(--gold); }
+.matrix-quad.q-hi-hi { background: var(--success-pale); }
+.matrix-quad.q-lo-hi { background: #eef6ea; }
+.matrix-quad.q-hi-lo { background: #f2ebe0; }
+.matrix-quad.q-lo-lo { background: #f9ebe8; }
+.matrix-quad-title { font-family: 'Playfair Display', serif; font-size: .85rem; color: var(--brown); }
+.matrix-quad-sub { font-size: .56rem; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; font-weight: 700; margin-top: -.3rem; }
+.matrix-quad-empty { font-size: .7rem; color: var(--muted); font-style: italic; }
+.matrix-axis-x { display: flex; justify-content: space-between; font-size: .6rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; padding: .4rem .3rem 0; }
+
+.matrix-goal { background: var(--warm-white); border: 1px solid var(--border); border-radius: 6px; padding: .4rem .55rem; cursor: grab; transition: opacity .15s; }
+.matrix-goal.dragging { opacity: .35; }
+.matrix-goal-text { font-size: .78rem; line-height: 1.35; word-break: break-word; }
+.matrix-goal-meta { font-size: .6rem; color: var(--muted); margin-top: 3px; display: flex; gap: .35rem; flex-wrap: wrap; align-items: center; }
+
 /* ── MODAL ── */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(26,18,8,.55); z-index: 300; align-items: center; justify-content: center; padding: 1rem; }
 .modal-overlay.open { display: flex; }
@@ -462,6 +500,7 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
     <div class="view-toggle">
       <button class="vpill active" id="viewTodayBtn" onclick="setView('today')">Day</button>
       <button class="vpill" id="viewWeekBtn" onclick="setView('week')">Week</button>
+      <button class="vpill" id="viewMatrixBtn" onclick="setView('matrix')" style="display:none" title="Only available on My Board">Matrix</button>
     </div>
   </div>
 </div>
@@ -1025,6 +1064,8 @@ window.setScope = function(s) {
   document.getElementById('scopeTeamBtn').classList.toggle('active', s === 'team');
   document.getElementById('scopeMineBtn').classList.toggle('active', s === 'mine');
   document.body.classList.toggle('scope-mine', s === 'mine');
+  document.getElementById('viewMatrixBtn').style.display = s === 'mine' ? '' : 'none';
+  if (s === 'team' && currentView === 'matrix') { setView('today'); return; }
   render();
 };
 
@@ -1032,6 +1073,7 @@ window.setView = function(v) {
   currentView = v;
   document.getElementById('viewTodayBtn').classList.toggle('active', v === 'today');
   document.getElementById('viewWeekBtn').classList.toggle('active', v === 'week');
+  document.getElementById('viewMatrixBtn').classList.toggle('active', v === 'matrix');
   render();
 };
 
@@ -1063,15 +1105,22 @@ function render() {
     if (!wd.includes(selectedDate)) selectedDate = (weekOffset === 0 && !isWeekend(todayStr())) ? todayStr() : wd[0];
   }
 
-  // "Today" jump button only shows when you're not already looking at today.
+  // Date navigation doesn't apply to the Matrix view (it spans all future days at once).
+  const dateNavRelevant = currentView !== 'matrix';
+  document.querySelectorAll('.week-nav-btn').forEach(b => b.style.display = dateNavRelevant ? '' : 'none');
+  document.getElementById('weekLabel').style.display = dateNavRelevant ? '' : 'none';
+  // "Today" jump button only shows when date-nav is relevant AND you're not already looking at today.
   const atHome = currentView === 'today' && weekOffset === 0 && selectedDate === todayStr();
-  document.getElementById('todayJumpBtn').style.display = atHome ? 'none' : '';
+  document.getElementById('todayJumpBtn').style.display = (dateNavRelevant && !atHome) ? '' : 'none';
 
   const board = document.getElementById('board');
-  const banner = scopeFilter === 'mine'
+  const banner = scopeFilter === 'mine' && currentView !== 'matrix'
     ? `<div class="scope-banner">🔒 My Board — every goal you own, across all your teams</div>`
     : '';
-  board.innerHTML = banner + (currentView === 'today' ? renderTodayView(selectedDate, wd) : renderWeekView(wd));
+  const viewHTML = currentView === 'today' ? renderTodayView(selectedDate, wd)
+                  : currentView === 'week'  ? renderWeekView(wd)
+                  : renderMatrixView();
+  board.innerHTML = banner + viewHTML;
 }
 
 function renderTodayView(dateStr, wd) {
@@ -1190,6 +1239,22 @@ function goalEditFormHTML(g) {
           <option value="private" ${g.visibility==='private'?'selected':''}>Private — just the owner</option>
         </select>
       </div>
+      <div class="edit-row">
+        <label>Effort</label>
+        <select id="edit-effort-${g.id}">
+          <option value="">Not set</option>
+          <option value="1" ${g.effort===1?'selected':''}>Low</option>
+          <option value="2" ${g.effort===2?'selected':''}>High</option>
+        </select>
+      </div>
+      <div class="edit-row">
+        <label>Reward</label>
+        <select id="edit-reward-${g.id}">
+          <option value="">Not set</option>
+          <option value="1" ${g.reward===1?'selected':''}>Low</option>
+          <option value="2" ${g.reward===2?'selected':''}>High</option>
+        </select>
+      </div>
       <div class="edit-actions">
         <button class="gact" onclick="toggleEditGoal('${g.id}')">Cancel</button>
         <button class="gact save" onclick="saveGoalEdit('${g.id}')">Save</button>
@@ -1208,10 +1273,16 @@ window.saveGoalEdit = async function(id) {
   const date       = document.getElementById(`edit-date-${id}`).value;
   const slot       = document.getElementById(`edit-slot-${id}`).value;
   const visibility = document.getElementById(`edit-vis-${id}`).value;
+  const effortRaw  = document.getElementById(`edit-effort-${id}`).value;
+  const rewardRaw  = document.getElementById(`edit-reward-${id}`).value;
   if (!date) { showToast('Pick a date'); return; }
   if (date < todayStr()) { showToast('Pick today or a future date — past days are locked'); return; }
   if (isWeekend(date)) { showToast('Pick a weekday — Mon to Fri only'); return; }
-  await updateDoc(doc(db, 'goals', id), { uid, date, slot, visibility, rolled: false });
+  await updateDoc(doc(db, 'goals', id), {
+    uid, date, slot, visibility, rolled: false,
+    effort: effortRaw ? Number(effortRaw) : null,
+    reward: rewardRaw ? Number(rewardRaw) : null
+  });
   editingGoalId = null;
   showToast('Goal updated');
 };
@@ -1326,6 +1397,97 @@ function weekSlotHTML(dateStr, slot, icon) {
     </div>
   `;
 }
+
+// ── PRIORITY MATRIX ──────────────────────────────────────
+// Only meaningful on My Board (it's a personal prioritization tool, not
+// a team view). Pulls every incomplete goal you own dated today or later,
+// across every team — same "all your goals" philosophy as My Board itself.
+// Effort/Reward are each 1 (Low) or 2 (High); dragging a goal onto a
+// quadrant sets both fields at once.
+function myFutureGoalsForMatrix() {
+  const myUid = currentUser && currentUser.uid;
+  const today = todayStr();
+  return goals.filter(g => g.uid === myUid && !g.completed && g.date >= today);
+}
+
+function renderMatrixView() {
+  const mine = myFutureGoalsForMatrix();
+  const unrated = mine.filter(g => !g.effort || !g.reward);
+  const quad = (effort, reward) => mine.filter(g => g.effort === effort && g.reward === reward);
+
+  return `
+    <div class="matrix-intro">Every future goal you own, across every team. Drag a card into a quadrant to set its priority.</div>
+    <div class="matrix-unrated">
+      <div class="matrix-unrated-hdr">
+        <span class="matrix-unrated-title">Needs Rating (${unrated.length})</span>
+        <div class="matrix-unrated-line"></div>
+      </div>
+      <div class="matrix-unrated-tray"
+           ondragover="onMatrixDragOver(event)" ondragleave="onMatrixDragLeave(event)" ondrop="onMatrixTrayDrop(event)">
+        ${unrated.length ? unrated.map(matrixGoalHTML).join('') : `<div class="matrix-unrated-empty">Nothing waiting to be rated</div>`}
+      </div>
+    </div>
+    <div class="matrix-wrap">
+      <div class="matrix-axis-y"><span>High Reward</span><span>Low Reward</span></div>
+      <div class="matrix-main">
+        <div class="matrix-grid">
+          ${matrixQuadHTML('q-lo-hi', 'Showroom Wins', 'Low effort · High reward', quad(1,2))}
+          ${matrixQuadHTML('q-hi-hi', 'Signature Pieces', 'High effort · High reward', quad(2,2))}
+          ${matrixQuadHTML('q-lo-lo', 'Quick Tidy', 'Low effort · Low reward', quad(1,1))}
+          ${matrixQuadHTML('q-hi-lo', 'Back of the Warehouse', 'High effort · Low reward', quad(2,1))}
+        </div>
+        <div class="matrix-axis-x"><span>Low Effort</span><span>High Effort</span></div>
+      </div>
+    </div>
+  `;
+}
+
+function matrixQuadHTML(cls, title, sub, list) {
+  const [effort, reward] = cls === 'q-lo-hi' ? [1,2] : cls === 'q-hi-hi' ? [2,2] : cls === 'q-lo-lo' ? [1,1] : [2,1];
+  return `
+    <div class="matrix-quad ${cls}"
+         ondragover="onMatrixDragOver(event)" ondragleave="onMatrixDragLeave(event)" ondrop="onMatrixDrop(event,${effort},${reward})">
+      <div class="matrix-quad-title">${title}</div>
+      <div class="matrix-quad-sub">${sub}</div>
+      ${list.length ? list.map(matrixGoalHTML).join('') : `<div class="matrix-quad-empty">Drop a goal here</div>`}
+    </div>
+  `;
+}
+
+function matrixGoalHTML(g) {
+  return `
+    <div class="matrix-goal"
+         draggable="true"
+         ondragstart="onGoalDragStart(event,'${g.id}')"
+         ondragend="onGoalDragEnd(event)"
+         onclick="setScope('mine');setView('today');selectDay('${g.date}')">
+      <div class="matrix-goal-text">${esc(g.text)}</div>
+      <div class="matrix-goal-meta">
+        <span>${fmtShort(g.date)}${g.date===todayStr()?' · Today':''}</span>
+        <span class="team-chip-mini">${esc(teamName(g.teamId))}</span>
+      </div>
+    </div>
+  `;
+}
+
+window.onMatrixDragOver = function(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); };
+window.onMatrixDragLeave = function(e) { e.currentTarget.classList.remove('drag-over'); };
+window.onMatrixDrop = async function(e, effort, reward) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const id = e.dataTransfer.getData('text/plain');
+  if (!id) return;
+  await updateDoc(doc(db, 'goals', id), { effort, reward });
+  showToast('Priority updated');
+};
+window.onMatrixTrayDrop = async function(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const id = e.dataTransfer.getData('text/plain');
+  if (!id) return;
+  await updateDoc(doc(db, 'goals', id), { effort: null, reward: null });
+  showToast('Moved back to unrated');
+};
 
 // ── UTIL ──────────────────────────────────────────────────
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
