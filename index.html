@@ -247,11 +247,28 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .goal-edit-form { margin-top: .55rem; padding: .55rem .6rem; background: var(--panel); border-radius: 6px; display: flex; flex-direction: column; gap: .4rem; }
 .edit-row { display: flex; align-items: center; gap: .5rem; }
 .edit-row label { font-size: .58rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; width: 46px; flex-shrink: 0; }
-.edit-row select, .edit-row input { flex: 1; padding: .32rem .45rem; border: 1px solid var(--border); border-radius: 4px; font-family: 'Lato', sans-serif; font-size: .8rem; background: var(--warm-white); outline: none; }
+.edit-row select, .edit-row input { flex: 1; padding: .32rem .45rem; border: 1px solid var(--border); border-radius: 999px; font-family: 'Lato', sans-serif; font-size: .8rem; background: var(--warm-white); outline: none; }
 .edit-row select:focus, .edit-row input:focus { border-color: var(--gold); }
+.edit-row .pill-toggle-group { flex: 1; }
 .edit-actions { display: flex; gap: .4rem; justify-content: flex-end; }
 .gact.save { background: var(--gold); color: #fff; border-color: var(--gold); }
 .gact.save:hover { background: #a87820; color: #fff; }
+
+/* Pill toggles — used for Slot / Visibility / Effort / Reward in the edit form */
+.pill-toggle-group { display: flex; gap: .3rem; flex-wrap: wrap; }
+.pill-toggle {
+  font-family: 'Lato', sans-serif; font-size: .72rem; font-weight: 700;
+  padding: .3rem .7rem; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--warm-white); color: var(--muted); cursor: pointer; transition: all .15s;
+}
+.pill-toggle:hover { border-color: var(--gold); color: var(--brown); }
+.pill-toggle.active { background: var(--gold); color: #fff; border-color: var(--gold); }
+
+/* Priority box — visually groups Effort + Reward as one related unit */
+.priority-box { border: 1px solid var(--border); border-radius: 10px; padding: .55rem .65rem; background: var(--panel); display: flex; flex-direction: column; gap: .4rem; }
+.priority-box-hdr { font-size: .56rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.priority-box-row { display: flex; align-items: center; gap: .5rem; }
+.priority-box-label { font-size: .7rem; font-weight: 700; color: var(--brown); width: 46px; flex-shrink: 0; }
 
 /* ── DRAG & DROP ── */
 .goal-card[draggable="true"] { cursor: grab; }
@@ -308,8 +325,8 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .private-badge { font-size: .58rem; color: var(--brown); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .goal-actions { display: flex; gap: .3rem; flex-shrink: 0; }
 .gact {
-  background: none; border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
-  font-size: .65rem; padding: .2rem .45rem; color: var(--muted); transition: all .15s;
+  background: none; border: 1px solid var(--border); border-radius: 999px; cursor: pointer;
+  font-size: .65rem; padding: .25rem .6rem; color: var(--muted); transition: all .15s;
 }
 .gact:hover { border-color: var(--rust); color: var(--rust); }
 .gact.roll:hover { border-color: var(--gold); color: var(--gold); }
@@ -323,7 +340,7 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 }
 .add-goal-input:focus { border-color: var(--gold); border-style: solid; background: var(--warm-white); }
 .add-goal-btn {
-  background: var(--rust); color: #fff; border: none; border-radius: 6px; padding: .5rem 1rem;
+  background: var(--rust); color: #fff; border: none; border-radius: 999px; padding: .5rem 1.1rem;
   font-size: .78rem; font-weight: 700; cursor: pointer; flex-shrink: 0; transition: background .15s;
 }
 .add-goal-btn:hover { background: #a04415; }
@@ -403,7 +420,7 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .form-note { font-size: .72rem; color: var(--muted); }
 .form-note code { background: var(--panel); padding: 1px 5px; border-radius: 3px; font-size: .7rem; word-break: break-all; }
 .modal-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
-.btn { border: none; padding: .42rem .85rem; font-family: 'Lato', sans-serif; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; border-radius: 2px; transition: background .15s; white-space: nowrap; }
+.btn { border: none; padding: .42rem .95rem; font-family: 'Lato', sans-serif; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; border-radius: 999px; transition: background .15s; white-space: nowrap; }
 .btn-save { background: var(--rust); color: #fff; } .btn-save:hover { background: #a04415; }
 .btn-cancel { background: transparent; color: var(--muted); border: 1px solid var(--border); } .btn-cancel:hover { background: var(--light-brown); }
 
@@ -1276,6 +1293,23 @@ function goalCardHTML(g) {
   `;
 }
 
+// Small pill-toggle-group builder shared by every either/or field in the
+// edit form. Renders a hidden input (read by saveGoalEdit, same as a
+// <select> would be) plus a row of pill buttons that set its value.
+function pillGroupHTML(inputId, options, current) {
+  const cur = current ?? '';
+  return `
+    <input type="hidden" id="${inputId}" value="${esc(cur)}"/>
+    <div class="pill-toggle-group">
+      ${options.map(o => `<button type="button" class="pill-toggle ${String(o.value)===String(cur)?'active':''}" onclick="setPillValue('${inputId}','${o.value}',this)">${o.label}</button>`).join('')}
+    </div>
+  `;
+}
+window.setPillValue = function(inputId, value, btn) {
+  document.getElementById(inputId).value = value;
+  Array.from(btn.parentElement.children).forEach(b => b.classList.toggle('active', b === btn));
+};
+
 function goalEditFormHTML(g) {
   const ownerOptions = Object.entries(users)
     .map(([uid,u]) => `<option value="${uid}" ${uid===g.uid?'selected':''}>${esc(u.displayName || u.email || 'Someone')}</option>`)
@@ -1287,46 +1321,35 @@ function goalEditFormHTML(g) {
   return `
     <div class="goal-edit-form" onclick="event.stopPropagation()">
       <div class="edit-row">
-        <label>Owner</label>
-        <select id="edit-owner-${g.id}">${ownerOptions}</select>
-      </div>
-      <div class="edit-row">
         <label>Team</label>
         <select id="edit-team-${g.id}">${teamOptions}</select>
       </div>
       <div class="edit-row">
-        <label>Date</label>
-        <input type="date" id="edit-date-${g.id}" value="${g.date}" min="${todayStr()}"/>
-      </div>
-      <div class="edit-row">
         <label>Slot</label>
-        <select id="edit-slot-${g.id}">
-          <option value="morning" ${g.slot==='morning'?'selected':''}>Morning</option>
-          <option value="afternoon" ${g.slot==='afternoon'?'selected':''}>Afternoon</option>
-        </select>
+        ${pillGroupHTML(`edit-slot-${g.id}`, [{value:'morning',label:'🌅 Morning'},{value:'afternoon',label:'🪑 Afternoon'}], g.slot || 'morning')}
       </div>
       <div class="edit-row">
         <label>Visible</label>
-        <select id="edit-vis-${g.id}">
-          <option value="public" ${g.visibility!=='private'?'selected':''}>Public — whole team</option>
-          <option value="private" ${g.visibility==='private'?'selected':''}>Private — just the owner</option>
-        </select>
+        ${pillGroupHTML(`edit-vis-${g.id}`, [{value:'public',label:'🌐 Public'},{value:'private',label:'🔒 Private'}], g.visibility === 'private' ? 'private' : 'public')}
+      </div>
+      <div class="priority-box">
+        <div class="priority-box-hdr">Priority</div>
+        <div class="priority-box-row">
+          <span class="priority-box-label">Effort</span>
+          ${pillGroupHTML(`edit-effort-${g.id}`, [{value:'',label:'—'},{value:'1',label:'Low'},{value:'2',label:'High'}], g.effort ? String(g.effort) : '')}
+        </div>
+        <div class="priority-box-row">
+          <span class="priority-box-label">Reward</span>
+          ${pillGroupHTML(`edit-reward-${g.id}`, [{value:'',label:'—'},{value:'1',label:'Low'},{value:'2',label:'High'}], g.reward ? String(g.reward) : '')}
+        </div>
       </div>
       <div class="edit-row">
-        <label>Effort</label>
-        <select id="edit-effort-${g.id}">
-          <option value="">Not set</option>
-          <option value="1" ${g.effort===1?'selected':''}>Low</option>
-          <option value="2" ${g.effort===2?'selected':''}>High</option>
-        </select>
+        <label>Owner</label>
+        <select id="edit-owner-${g.id}">${ownerOptions}</select>
       </div>
       <div class="edit-row">
-        <label>Reward</label>
-        <select id="edit-reward-${g.id}">
-          <option value="">Not set</option>
-          <option value="1" ${g.reward===1?'selected':''}>Low</option>
-          <option value="2" ${g.reward===2?'selected':''}>High</option>
-        </select>
+        <label>Date</label>
+        <input type="date" id="edit-date-${g.id}" value="${g.date}" min="${todayStr()}"/>
       </div>
       <div class="edit-actions">
         <button class="gact" onclick="toggleEditGoal('${g.id}')">Cancel</button>
