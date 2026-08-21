@@ -235,6 +235,7 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .daypill.active { background: var(--ink); border-color: var(--ink); }
 .daypill.active .daypill-name, .daypill.active .daypill-date { color: var(--light-brown); }
 .daypill.is-today:not(.active) { border-color: var(--rust); border-width: 2px; }
+.daypill.is-past:not(.active) { opacity: .5; }
 .daypill-name { font-size: .6rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
 .daypill-date { font-family: 'Playfair Display', serif; font-size: 1rem; color: var(--brown); }
 .daypill.active .daypill-date { color: var(--light-brown); }
@@ -328,11 +329,14 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .add-goal-btn:hover { background: #a04415; }
 .empty-slot { font-size: .78rem; color: var(--muted); font-style: italic; padding: .3rem 0 .6rem; }
 .add-goal-note { font-size: .62rem; color: var(--muted); font-style: italic; margin-top: .25rem; }
+.add-goal-locked { font-size: .74rem; color: var(--muted); font-style: italic; padding: .5rem .1rem; opacity: .8; }
 
 /* ── WEEK VIEW ── */
 .week-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: .6rem; }
 .day-col { border: 1px solid var(--border); border-radius: 6px; background: var(--warm-white); overflow: hidden; }
 .day-col.is-today { border-color: var(--rust); box-shadow: 0 0 0 1px var(--rust); }
+.day-col.is-past { opacity: .55; filter: grayscale(.35); }
+.day-col-locked { font-size: .5rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-top: 1px; }
 .day-col-hdr { background: var(--panel); padding: .4rem .5rem; text-align: center; border-bottom: 1px solid var(--border); }
 .day-col-name { font-family: 'Playfair Display', serif; font-size: .82rem; color: var(--brown); }
 .day-col-date { font-size: .58rem; color: var(--muted); }
@@ -1155,7 +1159,7 @@ function renderTodayView(dateStr, wd) {
   const dayPicker = `
     <div class="day-picker">
       ${wd.map(d => `
-        <button class="daypill ${d===dateStr?'active':''} ${d===todayActual?'is-today':''}" onclick="selectDay('${d}')" title="${fmtLong(d)}">
+        <button class="daypill ${d===dateStr?'active':''} ${d===todayActual?'is-today':''} ${d<todayActual?'is-past':''}" onclick="selectDay('${d}')" title="${fmtLong(d)}">
           <span class="daypill-name">${DAY_NAMES[parseYmd(d).getDay()].slice(0,3)}</span>
           <span class="daypill-date">${parseYmd(d).getDate()}</span>
           ${d===todayActual ? '<span class="daypill-tag">Today</span>' : (d < todayActual ? '<span class="daypill-tag" style="color:var(--muted)">Past</span>' : '')}
@@ -1185,6 +1189,16 @@ window.selectDay = function(d) { selectedDate = d; render(); };
 
 function slotSectionHTML(dateStr, slot, icon, label) {
   const list = goalsFor(dateStr, slot);
+  const past = isPastDate(dateStr);
+  const addArea = past
+    ? `<div class="add-goal-locked">🔒 Past day — locked. Anything left unfinished here already rolled forward to today.</div>`
+    : `
+      <div class="add-goal-row">
+        <input class="add-goal-input" id="add-${dateStr}-${slot}" placeholder="Add ${article(label)} ${label.toLowerCase()} goal…" onkeydown="addGoalKeydown(event,'${dateStr}','${slot}')"/>
+        <button class="add-goal-btn" onclick="addGoal('${dateStr}','${slot}')">Add</button>
+      </div>
+      <div class="add-goal-note">${scopeFilter === 'mine' ? '🔒 New goals here start private (only you).' : '🌐 New goals here start public (visible to the team).'}</div>
+    `;
   return `
     <div class="slot-section">
       <div class="slot-hdr">
@@ -1197,13 +1211,9 @@ function slotSectionHTML(dateStr, slot, icon, label) {
            ondragover="onSlotDragOver(event,'${dateStr}')"
            ondragleave="onSlotDragLeave(event)"
            ondrop="onSlotDrop(event,'${dateStr}','${slot}')">
-        ${list.length ? list.map(goalCardHTML).join('') : `<div class="empty-slot">Nothing planned yet — or drag a goal here</div>`}
+        ${list.length ? list.map(goalCardHTML).join('') : `<div class="empty-slot">Nothing planned yet${past ? '' : ' — or drag a goal here'}</div>`}
       </div>
-      <div class="add-goal-row">
-        <input class="add-goal-input" id="add-${dateStr}-${slot}" placeholder="Add ${article(label)} ${label.toLowerCase()} goal…" onkeydown="addGoalKeydown(event,'${dateStr}','${slot}')"/>
-        <button class="add-goal-btn" onclick="addGoal('${dateStr}','${slot}')">Add</button>
-      </div>
-      <div class="add-goal-note">${scopeFilter === 'mine' ? '🔒 New goals here start private (only you).' : '🌐 New goals here start public (visible to the team).'}</div>
+      ${addArea}
     </div>
   `;
 }
@@ -1384,10 +1394,11 @@ function renderWeekView(wd) {
   return `
     <div class="week-grid">
       ${wd.map(d => `
-        <div class="day-col ${d===today?'is-today':''}">
+        <div class="day-col ${d===today?'is-today':''} ${d<today?'is-past':''}">
           <div class="day-col-hdr">
             <div class="day-col-name">${DAY_NAMES[parseYmd(d).getDay()]}</div>
             <div class="day-col-date">${fmtShort(d)}</div>
+            ${d<today ? '<div class="day-col-locked">🔒 Locked</div>' : ''}
           </div>
           <div class="day-col-body">
             ${weekSlotHTML(d, 'morning', '🌅')}
