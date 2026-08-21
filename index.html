@@ -23,6 +23,7 @@
   --success-pale: #e8f5ee;
   --header-h:     52px;
   --toolbar-h:    50px;
+  --presence-h:   30px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
@@ -91,12 +92,26 @@ header {
 .sync-dot.loading { background: var(--gold); animation: pulse .8s infinite; }
 @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
 
+/* ── PRESENCE ── */
+.presence-bar {
+  background: var(--warm-white); border-bottom: 1px solid var(--border);
+  min-height: var(--presence-h);
+  padding: .3rem 1rem; display: flex; align-items: center; gap: .5rem;
+  flex-wrap: wrap; position: sticky; top: var(--header-h); z-index: 26;
+}
+.presence-label { font-size: .58rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 700; flex-shrink: 0; }
+.presence-list { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.presence-chip { display: flex; align-items: center; gap: .3rem; }
+.presence-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); flex-shrink: 0; box-shadow: 0 0 0 2px var(--success-pale); }
+.presence-name { font-size: .68rem; color: var(--brown); font-weight: 700; }
+.presence-empty { font-size: .68rem; color: var(--muted); font-style: italic; }
+
 /* ── TOOLBAR / WEEK NAV ── */
 .toolbar {
   background: var(--panel); border-bottom: 1px solid var(--border);
   padding: 0 1rem; height: var(--toolbar-h);
   display: flex; align-items: center; gap: .6rem;
-  position: sticky; top: var(--header-h); z-index: 30;
+  position: sticky; top: calc(var(--header-h) + var(--presence-h)); z-index: 25;
   overflow-x: auto; overflow-y: hidden;
   scrollbar-width: none;
 }
@@ -262,6 +277,12 @@ header {
   </div>
 </header>
 
+<!-- Presence -->
+<div class="presence-bar">
+  <span class="presence-label">In the app</span>
+  <div class="presence-list" id="presenceList"></div>
+</div>
+
 <!-- Toolbar -->
 <div class="toolbar">
   <button class="week-nav-btn" onclick="shiftWeek(-1)" title="Previous week">‹</button>
@@ -323,6 +344,7 @@ const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 function fmtLong(dateStr) { const d = parseYmd(dateStr); return `${DAY_NAMES[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`; }
 function fmtShort(dateStr) { const d = parseYmd(dateStr); return `${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}`; }
+function article(label) { return /^[aeiou]/i.test(label) ? 'an' : 'a'; }
 
 function currentWeekMonday() {
   const base = addDays(todayStr(), weekOffset * 7);
@@ -360,8 +382,10 @@ onAuthStateChanged(auth, async user => {
     subscribeToUsers();
     subscribeToGoals();
     setSyncState('loading');
+    startHeartbeat();
   } else {
     currentUser = null;
+    stopHeartbeat();
     const ls = document.getElementById('loginScreen');
     ls.style.display = ''; ls.classList.remove('hidden');
     document.getElementById('btnSignOut').style.display = 'none';
@@ -369,6 +393,46 @@ onAuthStateChanged(auth, async user => {
     hideLoading();
   }
 });
+
+// ── PRESENCE ──────────────────────────────────────────────
+// A user counts as "in the app" if their lastSeen was updated in the
+// last 90 seconds. Heartbeat refreshes it every 25s while the tab is open.
+const ONLINE_WINDOW_MS = 90000;
+let heartbeatTimer = null;
+let presenceTickTimer = null;
+function startHeartbeat() {
+  touchLastSeen();
+  heartbeatTimer = setInterval(touchLastSeen, 25000);
+  presenceTickTimer = setInterval(renderPresence, 15000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) touchLastSeen(); });
+}
+function stopHeartbeat() {
+  if (heartbeatTimer) clearInterval(heartbeatTimer);
+  if (presenceTickTimer) clearInterval(presenceTickTimer);
+  heartbeatTimer = null; presenceTickTimer = null;
+}
+async function touchLastSeen() {
+  if (!currentUser) return;
+  try { await setDoc(doc(db, 'users', currentUser.uid), { lastSeen: serverTimestamp() }, { merge: true }); }
+  catch (e) { console.error('heartbeat failed', e); }
+}
+function isOnline(u) {
+  if (!u || !u.lastSeen) return false;
+  const t = u.lastSeen.toDate ? u.lastSeen.toDate() : new Date(u.lastSeen);
+  return (Date.now() - t.getTime()) < ONLINE_WINDOW_MS;
+}
+function renderPresence() {
+  const list = document.getElementById('presenceList');
+  if (!list) return;
+  const online = Object.entries(users).filter(([uid, u]) => isOnline(u));
+  if (!online.length) { list.innerHTML = '<span class="presence-empty">No one else online</span>'; return; }
+  list.innerHTML = online.map(([uid, u]) => `
+    <span class="presence-chip">
+      <span class="presence-dot"></span>
+      <span class="presence-name">${esc(u.displayName || u.email || 'Someone')}</span>
+    </span>
+  `).join('');
+}
 
 function renderHeaderUser(user) {
   const wrap = document.getElementById('userAvatarWrap');
@@ -386,6 +450,7 @@ function subscribeToUsers() {
   usersUnsub = onSnapshot(collection(db, 'users'), snap => {
     users = {};
     snap.forEach(d => users[d.id] = d.data());
+    renderPresence();
     render();
   });
 }
@@ -406,8 +471,29 @@ function subscribeToGoals() {
     snap.forEach(d => goals.push({ id: d.id, ...d.data() }));
     setSyncState('live');
     hideLoading();
+    rolloverOverdueGoals();
     render();
   }, err => { console.error(err); setSyncState('error'); });
+}
+
+// Any incomplete goal left on a past weekday automatically moves to the
+// next available weekday (today, if today is Mon-Fri and still ahead of it).
+let rollingInFlight = new Set();
+async function rolloverOverdueGoals() {
+  const today = todayStr();
+  const target = isWeekend(today) ? nextWeekday(today) : today;
+  const overdue = goals.filter(g => !g.completed && g.date < target && !rollingInFlight.has(g.id));
+  for (const g of overdue) {
+    rollingInFlight.add(g.id);
+    try {
+      await updateDoc(doc(db, 'goals', g.id), {
+        date: target,
+        rolled: true,
+        rolledFrom: g.rolledFrom || g.date
+      });
+    } catch (e) { console.error('rollover failed', e); }
+    finally { rollingInFlight.delete(g.id); }
+  }
 }
 
 function goalsFor(dateStr, slot) {
@@ -529,7 +615,7 @@ function slotSectionHTML(dateStr, slot, icon, label) {
         ${list.length ? list.map(goalCardHTML).join('') : `<div class="empty-slot">Nothing planned yet</div>`}
       </div>
       <div class="add-goal-row">
-        <input class="add-goal-input" id="add-${dateStr}-${slot}" placeholder="Add a ${label.toLowerCase()} goal…" onkeydown="addGoalKeydown(event,'${dateStr}','${slot}')"/>
+        <input class="add-goal-input" id="add-${dateStr}-${slot}" placeholder="Add ${article(label)} ${label.toLowerCase()} goal…" onkeydown="addGoalKeydown(event,'${dateStr}','${slot}')"/>
         <button class="add-goal-btn" onclick="addGoal('${dateStr}','${slot}')">Add</button>
       </div>
     </div>
