@@ -22,6 +22,7 @@
   --success:      #2a7a4a;
   --success-pale: #e8f5ee;
   --header-h:     52px;
+  --team-h:       36px;
   --toolbar-h:    50px;
   --presence-h:   30px;
 }
@@ -80,38 +81,75 @@ header {
   font-size: .68rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.btn-signout {
-  font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 700;
-  color: var(--muted); background: none; border: 1px solid #333; border-radius: 2px;
-  padding: 3px 8px; cursor: pointer; font-family: 'Lato', sans-serif; transition: all .15s;
-  white-space: nowrap;
-}
-.btn-signout:hover { color: var(--light-brown); border-color: var(--muted); }
 .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); display: inline-block; transition: background .3s; }
 .sync-dot.live { background: var(--success); } .sync-dot.error { background: var(--danger); }
 .sync-dot.loading { background: var(--gold); animation: pulse .8s infinite; }
 @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
 
-/* ── PRESENCE ── */
-.presence-bar {
-  background: var(--warm-white); border-bottom: 1px solid var(--border);
-  min-height: var(--presence-h);
-  padding: .3rem 1rem; display: flex; align-items: center; gap: .5rem;
-  flex-wrap: wrap; position: sticky; top: var(--header-h); z-index: 26;
+/* ── AVATAR DROPDOWN ── */
+.avatar-menu-wrap { position: relative; }
+.avatar-btn { background: none; border: none; cursor: pointer; padding: 0; display: flex; }
+.avatar-dropdown {
+  display: none; position: absolute; top: calc(100% + 8px); right: 0;
+  width: 200px; background: var(--warm-white); border: 1px solid var(--border);
+  border-radius: 6px; box-shadow: 0 8px 24px rgba(26,18,8,.22); z-index: 200; overflow: hidden;
 }
-.presence-label { font-size: .58rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 700; flex-shrink: 0; }
-.presence-list { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
-.presence-chip { display: flex; align-items: center; gap: .3rem; }
-.presence-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); flex-shrink: 0; box-shadow: 0 0 0 2px var(--success-pale); }
-.presence-name { font-size: .68rem; color: var(--brown); font-weight: 700; }
-.presence-empty { font-size: .68rem; color: var(--muted); font-style: italic; }
+.avatar-dropdown.open { display: block; }
+.avatar-dropdown-name { padding: .6rem .8rem; font-size: .78rem; font-weight: 700; color: var(--ink); border-bottom: 1px solid var(--border); background: var(--panel); word-break: break-word; }
+.avatar-dropdown-email { font-size: .64rem; color: var(--muted); font-weight: 400; margin-top: 1px; display: block; }
+.avatar-dropdown-item {
+  width: 100%; text-align: left; background: none; border: none; cursor: pointer;
+  padding: .55rem .8rem; font-size: .78rem; color: var(--danger); font-weight: 700;
+  font-family: 'Lato', sans-serif; transition: background .12s;
+}
+.avatar-dropdown-item:hover { background: #fbeaea; }
+
+/* ── TEAM BAR ── */
+.team-bar {
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  min-height: var(--team-h); padding: .3rem 1rem;
+  display: flex; align-items: center; gap: .7rem; flex-wrap: wrap;
+  position: sticky; top: var(--header-h); z-index: 27;
+}
+.team-switcher { position: relative; flex-shrink: 0; }
+.team-switch-btn {
+  display: flex; align-items: center; gap: .35rem;
+  background: var(--warm-white); border: 1px solid var(--border); border-radius: 20px;
+  padding: .3rem .7rem; cursor: pointer; font-family: 'Playfair Display', serif;
+  font-style: italic; font-size: .85rem; color: var(--brown); transition: background .15s;
+}
+.team-switch-btn:hover { background: var(--light-brown); }
+.team-chevron { font-size: .6rem; color: var(--muted); }
+.team-desc { font-size: .68rem; color: var(--muted); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.team-menu {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0;
+  width: 250px; background: var(--warm-white); border: 1px solid var(--border);
+  border-radius: 6px; box-shadow: 0 8px 24px rgba(26,18,8,.2); z-index: 200; overflow: hidden;
+}
+.team-menu.open { display: block; }
+.team-menu-label { font-size: .56rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 700; padding: .5rem .8rem .2rem; }
+.team-menu-list { max-height: 200px; overflow-y: auto; }
+.team-menu-team {
+  width: 100%; text-align: left; background: none; border: none; cursor: pointer;
+  padding: .45rem .8rem; font-size: .8rem; color: var(--ink); font-family: 'Lato', sans-serif;
+  transition: background .12s; display: block;
+}
+.team-menu-team:hover { background: var(--panel); }
+.team-menu-team.active { background: var(--light-brown); font-weight: 700; }
+.team-menu-divider { height: 1px; background: var(--border); margin: .2rem 0; }
+.team-menu-item {
+  width: 100%; text-align: left; background: none; border: none; cursor: pointer;
+  padding: .5rem .8rem; font-size: .78rem; color: var(--brown); font-weight: 700;
+  font-family: 'Lato', sans-serif; transition: background .12s;
+}
+.team-menu-item:hover { background: var(--panel); }
 
 /* ── TOOLBAR / WEEK NAV ── */
 .toolbar {
   background: var(--panel); border-bottom: 1px solid var(--border);
   padding: 0 1rem; height: var(--toolbar-h);
   display: flex; align-items: center; gap: .6rem;
-  position: sticky; top: calc(var(--header-h) + var(--presence-h)); z-index: 25;
+  position: sticky; top: calc(var(--header-h) + var(--team-h)); z-index: 25;
   overflow-x: auto; overflow-y: hidden;
   scrollbar-width: none;
 }
@@ -126,7 +164,11 @@ header {
 .week-nav-btn:hover { background: var(--light-brown); }
 .week-label { font-family: 'Playfair Display', serif; font-style: italic; font-size: .88rem; color: var(--brown); white-space: nowrap; flex-shrink: 0; }
 .toolbar-spacer { flex: 1; min-width: .25rem; }
-.view-toggle { display: flex; gap: .2rem; flex-shrink: 0; }
+
+.toggle-group { display: flex; align-items: center; gap: .35rem; flex-shrink: 0; }
+.toggle-cap { font-size: .5rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 700; white-space: nowrap; }
+.toggle-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+
 .vpill {
   font-family: 'Playfair Display', serif; font-style: italic; font-size: .8rem;
   color: var(--muted); padding: 3px 12px; border-radius: 20px;
@@ -135,13 +177,37 @@ header {
 }
 .vpill:hover { color: var(--brown); border-color: var(--border); }
 .vpill.active { background: var(--ink); color: var(--light-brown); border-color: var(--ink); font-style: normal; font-weight: 700; letter-spacing: .03em; }
+
+/* scope pills get their own accent color so they're visually distinct from the view pills */
+.spill {
+  font-family: 'Playfair Display', serif; font-style: italic; font-size: .8rem;
+  color: var(--muted); padding: 3px 12px; border-radius: 20px;
+  border: 1px solid transparent; background: transparent; cursor: pointer;
+  transition: all .15s; white-space: nowrap;
+}
+.spill:hover { color: var(--rust); border-color: var(--border); }
+.spill.active { background: var(--rust); color: #fff; border-color: var(--rust); font-style: normal; font-weight: 700; letter-spacing: .03em; }
+
 .today-jump {
   font-size: .62rem; letter-spacing: .08em; text-transform: uppercase; font-weight: 700;
   color: var(--rust); background: none; border: 1px solid var(--rust); border-radius: 20px;
   padding: 4px 10px; cursor: pointer; flex-shrink: 0; transition: all .15s;
 }
 .today-jump:hover { background: var(--rust); color: #fff; }
-.scope-toggle { display: flex; gap: .2rem; flex-shrink: 0; }
+
+/* ── PRESENCE ── */
+.presence-bar {
+  background: var(--warm-white); border-bottom: 1px solid var(--border);
+  min-height: var(--presence-h);
+  padding: .3rem 1rem; display: flex; align-items: center; gap: .5rem;
+  flex-wrap: wrap; position: sticky; top: calc(var(--header-h) + var(--team-h) + var(--toolbar-h)); z-index: 24;
+}
+.presence-label { font-size: .58rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 700; flex-shrink: 0; }
+.presence-list { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.presence-chip { display: flex; align-items: center; gap: .3rem; }
+.presence-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); flex-shrink: 0; box-shadow: 0 0 0 2px var(--success-pale); }
+.presence-name { font-size: .68rem; color: var(--brown); font-weight: 700; }
+.presence-empty { font-size: .68rem; color: var(--muted); font-style: italic; }
 
 /* ── DAY PICKER (Today view) ── */
 .day-picker { display: flex; justify-content: center; gap: .35rem; flex-wrap: wrap; margin-bottom: 1rem; }
@@ -162,7 +228,7 @@ header {
 .daypill.active .daypill-tag { color: var(--gold); }
 .past-note { text-align: center; font-size: .68rem; color: var(--muted); font-style: italic; margin: -.4rem 0 1rem; }
 
-/* ── EDIT PANEL (owner / date / slot) ── */
+/* ── EDIT PANEL (owner / date / slot / visibility) ── */
 .goal-edit-form { margin-top: .55rem; padding: .55rem .6rem; background: var(--panel); border-radius: 6px; display: flex; flex-direction: column; gap: .4rem; }
 .edit-row { display: flex; align-items: center; gap: .5rem; }
 .edit-row label { font-size: .58rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; width: 46px; flex-shrink: 0; }
@@ -190,8 +256,6 @@ header {
 .today-hero { text-align: center; margin-bottom: 1.1rem; }
 .today-hero-day { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1.7rem; color: var(--brown); }
 .today-hero-sub { font-size: .62rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin-top: .1rem; }
-.weekend-note { text-align: center; padding: 3rem 1rem; color: var(--muted); }
-.weekend-note .wn-icon { font-size: 2rem; opacity: .4; margin-bottom: .5rem; }
 
 .slot-section { margin-bottom: 1.3rem; }
 .slot-hdr { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
@@ -207,6 +271,7 @@ header {
   position: relative; transition: background .15s;
 }
 .goal-card.completed { background: var(--success-pale); border-color: rgba(42,122,74,.3); }
+.goal-card.is-private { border-left: 3px solid var(--brown); }
 .goal-check {
   width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; margin-top: 1px;
   border: 2px solid var(--border); background: transparent; cursor: pointer;
@@ -224,6 +289,7 @@ header {
 .owner-avatar-init { width: 16px; height: 16px; border-radius: 50%; background: var(--brown); color: var(--light-brown); font-size: .48rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .owner-name { font-size: .66rem; color: var(--muted); font-weight: 700; }
 .rolled-badge { font-size: .58rem; color: var(--gold); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.private-badge { font-size: .58rem; color: var(--brown); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .goal-actions { display: flex; gap: .3rem; flex-shrink: 0; }
 .gact {
   background: none; border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
@@ -246,6 +312,7 @@ header {
 }
 .add-goal-btn:hover { background: #a04415; }
 .empty-slot { font-size: .78rem; color: var(--muted); font-style: italic; padding: .3rem 0 .6rem; }
+.add-goal-note { font-size: .62rem; color: var(--muted); font-style: italic; margin-top: .25rem; }
 
 /* ── WEEK VIEW ── */
 .week-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: .6rem; }
@@ -258,12 +325,30 @@ header {
 .wk-slot-label { font-size: .55rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: .2rem; }
 .wk-goal { font-size: .72rem; padding: .25rem .4rem; border-radius: 4px; background: var(--cream); border: 1px solid var(--border); margin-bottom: .25rem; word-break: break-word; }
 .wk-goal.completed { background: var(--success-pale); text-decoration: line-through; color: var(--muted); border-color: rgba(42,122,74,.3); }
+.wk-goal.is-private { border-left: 2px solid var(--brown); }
 .wk-goal-owner { font-size: .58rem; color: var(--muted); display: block; margin-top: 1px; }
 .wk-empty { font-size: .68rem; color: var(--muted); font-style: italic; }
 
 @media (max-width: 800px) {
   .week-grid { grid-template-columns: 1fr; }
 }
+
+/* ── MODAL ── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(26,18,8,.55); z-index: 300; align-items: center; justify-content: center; padding: 1rem; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--warm-white); border: 1px solid var(--border); border-radius: 6px; padding: 1.6rem; width: 100%; max-width: 440px; box-shadow: 0 8px 32px rgba(26,18,8,.2); }
+.modal h3 { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: var(--brown); margin-bottom: 1rem; }
+.form-row { margin-bottom: .8rem; }
+.form-row label { display: block; font-size: .6rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: .28rem; }
+.form-row input, .form-row textarea { width: 100%; padding: .55rem .8rem; font-family: 'Lato', sans-serif; font-size: .92rem; color: var(--ink); background: var(--cream); border: 1px solid var(--border); border-radius: 3px; outline: none; transition: border-color .15s; }
+.form-row input:focus, .form-row textarea:focus { border-color: var(--gold); }
+.form-row textarea { resize: vertical; min-height: 64px; line-height: 1.5; }
+.form-note { font-size: .72rem; color: var(--muted); }
+.form-note code { background: var(--panel); padding: 1px 5px; border-radius: 3px; font-size: .7rem; word-break: break-all; }
+.modal-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
+.btn { border: none; padding: .42rem .85rem; font-family: 'Lato', sans-serif; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; border-radius: 2px; transition: background .15s; white-space: nowrap; }
+.btn-save { background: var(--rust); color: #fff; } .btn-save:hover { background: #a04415; }
+.btn-cancel { background: transparent; color: var(--muted); border: 1px solid var(--border); } .btn-cancel:hover { background: var(--light-brown); }
 
 /* ── LOADING / TOAST ── */
 #loadingScreen { position: fixed; inset: 0; background: var(--cream); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 1rem; z-index: 998; transition: opacity .4s; }
@@ -272,14 +357,13 @@ header {
 .loading-bar { width: 140px; height: 3px; background: var(--light-brown); border-radius: 2px; overflow: hidden; }
 .loading-bar-inner { height: 100%; background: var(--gold); animation: loadSlide 1.2s ease-in-out infinite; }
 @keyframes loadSlide { 0%{transform:translateX(-100%);width:40%}50%{width:60%}100%{transform:translateX(300%);width:40%} }
-.toast { position: fixed; bottom: 1.4rem; right: 1.8rem; background: var(--ink); color: var(--light-brown); padding: .6rem 1.1rem; border-radius: 3px; font-size: .82rem; font-weight: 700; opacity: 0; transform: translateY(6px); transition: opacity .3s, transform .3s; pointer-events: none; z-index: 200; }
+.toast { position: fixed; bottom: 1.4rem; right: 1.8rem; background: var(--ink); color: var(--light-brown); padding: .6rem 1.1rem; border-radius: 3px; font-size: .82rem; font-weight: 700; opacity: 0; transform: translateY(6px); transition: opacity .3s, transform .3s; pointer-events: none; z-index: 400; }
 .toast.show { opacity: 1; transform: translateY(0); }
 
 @media (max-width: 600px) {
   .main { padding: .8rem .75rem 5rem; }
   .brand-title { font-size: 1.05rem; }
   .brand-sub { font-size: .5rem; letter-spacing: .1em; }
-  .btn-signout { font-size: .54rem; padding: 2px 6px; }
 }
 </style>
 </head>
@@ -309,19 +393,37 @@ header {
 <header>
   <div class="brand">
     <div class="brand-title">🛋️ Studio Board</div>
-    <div class="brand-sub">Room Planning Team</div>
   </div>
   <div class="header-right">
     <span class="sync-dot" id="syncDot"></span>
-    <div id="userAvatarWrap"></div>
-    <button class="btn-signout" id="btnSignOut" style="display:none" onclick="signOutUser()">Sign out</button>
+    <div class="avatar-menu-wrap">
+      <button class="avatar-btn" id="avatarBtn" onclick="toggleAvatarMenu()">
+        <span id="userAvatarWrap"></span>
+      </button>
+      <div class="avatar-dropdown" id="avatarDropdown">
+        <div class="avatar-dropdown-name" id="avatarDropdownName"></div>
+        <button class="avatar-dropdown-item" onclick="signOutUser()">Sign out</button>
+      </div>
+    </div>
   </div>
 </header>
 
-<!-- Presence -->
-<div class="presence-bar">
-  <span class="presence-label">In the app</span>
-  <div class="presence-list" id="presenceList"></div>
+<!-- Team bar -->
+<div class="team-bar">
+  <div class="team-switcher">
+    <button class="team-switch-btn" onclick="toggleTeamMenu()">
+      <span id="teamNameLabel">Loading…</span><span class="team-chevron">▾</span>
+    </button>
+    <div class="team-menu" id="teamMenu">
+      <div class="team-menu-label">Your Teams</div>
+      <div class="team-menu-list" id="teamMenuList"></div>
+      <div class="team-menu-divider"></div>
+      <button class="team-menu-item" onclick="openCreateTeamModal()">＋ New Team</button>
+      <button class="team-menu-item" onclick="openJoinTeamModal()">🔗 Join a Team</button>
+      <button class="team-menu-item" onclick="openTeamSettingsModal()">⚙ Board Settings</button>
+    </div>
+  </div>
+  <div class="team-desc" id="teamDescLabel"></div>
 </div>
 
 <!-- Toolbar -->
@@ -329,19 +431,44 @@ header {
   <button class="week-nav-btn" onclick="shiftWeek(-1)" title="Previous week">‹</button>
   <div class="week-label" id="weekLabel"></div>
   <button class="week-nav-btn" onclick="shiftWeek(1)" title="Next week">›</button>
-  <button class="today-jump" onclick="jumpToToday()">Today</button>
+  <button class="today-jump" id="todayJumpBtn" onclick="jumpToToday()">Today</button>
   <div class="toolbar-spacer"></div>
-  <div class="scope-toggle">
-    <button class="vpill active" id="scopeTeamBtn" onclick="setScope('team')" title="Everyone's goals">Team Board</button>
-    <button class="vpill" id="scopeMineBtn" onclick="setScope('mine')" title="Just your goals, same days">My Board</button>
+  <div class="toggle-group">
+    <span class="toggle-cap">Board</span>
+    <div class="scope-toggle">
+      <button class="spill active" id="scopeTeamBtn" onclick="setScope('team')" title="Everyone's public goals">Team Board</button>
+      <button class="spill" id="scopeMineBtn" onclick="setScope('mine')" title="Just your goals, same days">My Board</button>
+    </div>
   </div>
-  <div class="view-toggle">
-    <button class="vpill active" id="viewTodayBtn" onclick="setView('today')">Today</button>
-    <button class="vpill" id="viewWeekBtn" onclick="setView('week')">This Week</button>
+  <div class="toggle-divider"></div>
+  <div class="toggle-group">
+    <span class="toggle-cap">View</span>
+    <div class="view-toggle">
+      <button class="vpill active" id="viewTodayBtn" onclick="setView('today')">Today</button>
+      <button class="vpill" id="viewWeekBtn" onclick="setView('week')">This Week</button>
+    </div>
   </div>
 </div>
 
+<!-- Presence -->
+<div class="presence-bar">
+  <span class="presence-label">In the app</span>
+  <div class="presence-list" id="presenceList"></div>
+</div>
+
 <main class="main"><div id="board"></div></main>
+
+<!-- Generic modal (create/join team, board settings) -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 id="modalTitle"></h3>
+    <div id="modalBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-save" id="modalSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -349,8 +476,8 @@ header {
 import { initializeApp }   from "https://www.gstatic.com/firebasejs/11.8.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut }
                            from "https://www.gstatic.com/firebasejs/11.8.0/firebase-auth.js";
-import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc,
-         deleteDoc, query, where, setDoc, serverTimestamp }
+import { getFirestore, collection, doc, getDoc, onSnapshot, addDoc, updateDoc,
+         deleteDoc, setDoc, serverTimestamp, arrayUnion }
                            from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -367,20 +494,28 @@ const auth = getAuth(app);
 const db   = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
-let currentUser  = null;
-let users        = {};       // uid -> {displayName, photoURL}
-let goals        = [];       // all loaded goals (current week's range + buffer)
-let goalsUnsub   = null;
-let usersUnsub   = null;
-let currentView  = 'today';  // 'today' | 'week'
-let scopeFilter  = 'team';   // 'team' (everyone) | 'mine' (just current user, same days/slots)
-let editingGoalId = null;   // id of the goal currently showing its inline edit panel
-let weekOffset   = 0;        // 0 = this week, -1 = last week, +1 = next week
-let selectedDate = todayStr(); // used in today view; snaps to nearest weekday
+const DEFAULT_TEAM_ID = 'default-team';
+
+let currentUser   = null;
+let users         = {};       // uid -> {displayName, photoURL, lastSeen}
+let goals         = [];       // all loaded goals across all teams (client filters by currentTeamId)
+let teams         = {};       // teamId -> {name, description, memberUids, ownerUid}
+let goalsUnsub    = null;
+let usersUnsub    = null;
+let teamsUnsub    = null;
+let currentView   = 'today';  // 'today' | 'week'
+let scopeFilter   = 'team';   // 'team' (everyone's public goals) | 'mine' (just current user)
+let currentTeamId = DEFAULT_TEAM_ID;
+let editingGoalId = null;     // id of the goal currently showing its inline edit panel
+let weekOffset    = 0;        // 0 = this week, -1 = last week, +1 = next week
+let selectedDate  = null;     // used in today view; snaps to nearest weekday, set after helpers are defined
 
 // ── DATE HELPERS ──────────────────────────────────────────
-function todayStr() { const d = new Date(); return ymd(d); }
-function ymd(d) { return d.toISOString().slice(0,10); }
+// NOTE: dates are always formatted from local Y/M/D components (never via
+// toISOString, which converts to UTC and can silently shift the date
+// backward or forward depending on the browser's timezone offset).
+function ymd(d) { const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dd}`; }
+function todayStr() { return ymd(new Date()); }
 function parseYmd(s) { const [y,m,dd] = s.split('-').map(Number); return new Date(y, m-1, dd); }
 function addDays(dateStr, n) { const d = parseYmd(dateStr); d.setDate(d.getDate()+n); return ymd(d); }
 function dayOfWeek(dateStr) { return parseYmd(dateStr).getDay(); } // 0 Sun..6 Sat
@@ -395,12 +530,14 @@ function article(label) { return /^[aeiou]/i.test(label) ? 'an' : 'a'; }
 
 function currentWeekMonday() {
   const base = addDays(todayStr(), weekOffset * 7);
-  return mondayOf(base);
+  return mondayOf(base); // always Mon..Fri regardless of what today's weekday is
 }
 function weekDates() {
   const mon = currentWeekMonday();
   return [0,1,2,3,4].map(i => addDays(mon, i));
 }
+
+selectedDate = isWeekend(todayStr()) ? nextWeekday(todayStr()) : todayStr();
 
 // ── AUTH ──────────────────────────────────────────────────
 document.getElementById('btnGoogleSignIn').onclick = async () => {
@@ -410,6 +547,8 @@ document.getElementById('btnGoogleSignIn').onclick = async () => {
 window.signOutUser = async () => {
   if (goalsUnsub) { goalsUnsub(); goalsUnsub = null; }
   if (usersUnsub) { usersUnsub(); usersUnsub = null; }
+  if (teamsUnsub) { teamsUnsub(); teamsUnsub = null; }
+  stopHeartbeat();
   await fbSignOut(auth);
 };
 
@@ -419,31 +558,47 @@ onAuthStateChanged(auth, async user => {
     document.getElementById('loginScreen').classList.add('hidden');
     setTimeout(() => document.getElementById('loginScreen').style.display = 'none', 420);
     renderHeaderUser(user);
-    document.getElementById('btnSignOut').style.display = '';
     await setDoc(doc(db, 'users', user.uid), {
       displayName: user.displayName || user.email,
       email: user.email,
       photoURL: user.photoURL || '',
       lastSeen: serverTimestamp()
     }, { merge: true });
+    currentTeamId = localStorage.getItem(`sb_team_${user.uid}`) || DEFAULT_TEAM_ID;
+    await ensureDefaultTeamMembership();
     subscribeToUsers();
+    subscribeToTeams();
     subscribeToGoals();
     setSyncState('loading');
     startHeartbeat();
   } else {
     currentUser = null;
-    stopHeartbeat();
     const ls = document.getElementById('loginScreen');
     ls.style.display = ''; ls.classList.remove('hidden');
-    document.getElementById('btnSignOut').style.display = 'none';
     document.getElementById('userAvatarWrap').innerHTML = '';
     hideLoading();
   }
 });
 
+async function ensureDefaultTeamMembership() {
+  try {
+    const ref = doc(db, 'teams', DEFAULT_TEAM_ID);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      await setDoc(ref, {
+        name: 'Room Planning Team',
+        description: 'The original shared studio board',
+        memberUids: [currentUser.uid],
+        ownerUid: currentUser.uid,
+        createdAt: serverTimestamp()
+      });
+    } else if (!(snap.data().memberUids || []).includes(currentUser.uid)) {
+      await updateDoc(ref, { memberUids: arrayUnion(currentUser.uid) });
+    }
+  } catch (e) { console.error('ensureDefaultTeamMembership failed', e); }
+}
+
 // ── PRESENCE ──────────────────────────────────────────────
-// A user counts as "in the app" if their lastSeen was updated in the
-// last 90 seconds. Heartbeat refreshes it every 25s while the tab is open.
 const ONLINE_WINDOW_MS = 90000;
 let heartbeatTimer = null;
 let presenceTickTimer = null;
@@ -484,12 +639,24 @@ function renderPresence() {
 function renderHeaderUser(user) {
   const wrap = document.getElementById('userAvatarWrap');
   if (user.photoURL) {
-    wrap.innerHTML = `<img class="user-avatar" src="${esc(user.photoURL)}" alt="${esc(user.displayName||'')}" title="${esc(user.displayName||user.email)}"/>`;
+    wrap.innerHTML = `<img class="user-avatar" src="${esc(user.photoURL)}" alt="${esc(user.displayName||'')}"/>`;
   } else {
     const i = (user.displayName||user.email||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-    wrap.innerHTML = `<div class="user-avatar-initials" title="${esc(user.displayName||user.email)}">${i}</div>`;
+    wrap.innerHTML = `<div class="user-avatar-initials">${i}</div>`;
   }
+  document.getElementById('avatarDropdownName').innerHTML =
+    `${esc(user.displayName || 'Signed in')}<span class="avatar-dropdown-email">${esc(user.email||'')}</span>`;
 }
+
+window.toggleAvatarMenu = function() {
+  document.getElementById('avatarDropdown').classList.toggle('open');
+};
+document.addEventListener('click', e => {
+  const wrap = document.querySelector('.avatar-menu-wrap');
+  if (wrap && !wrap.contains(e.target)) document.getElementById('avatarDropdown').classList.remove('open');
+  const tw = document.querySelector('.team-switcher');
+  if (tw && !tw.contains(e.target)) document.getElementById('teamMenu').classList.remove('open');
+});
 
 // ── USERS ─────────────────────────────────────────────────
 function subscribeToUsers() {
@@ -509,10 +676,116 @@ function avatarHTML(uid) {
   return `<div class="owner-avatar-init">${initials}</div>`;
 }
 
+// ── TEAMS ─────────────────────────────────────────────────
+function subscribeToTeams() {
+  if (teamsUnsub) teamsUnsub();
+  teamsUnsub = onSnapshot(collection(db, 'teams'), snap => {
+    teams = {};
+    snap.forEach(d => teams[d.id] = d.data());
+    // If we somehow ended up on a team we're no longer a member of, fall back.
+    const mine = myTeamEntries();
+    if (!mine.find(([id]) => id === currentTeamId)) {
+      currentTeamId = mine.length ? mine[0][0] : DEFAULT_TEAM_ID;
+    }
+    renderTeamBar();
+    render();
+  });
+}
+function myTeamEntries() {
+  const uid = currentUser && currentUser.uid;
+  return Object.entries(teams).filter(([, t]) => (t.memberUids || []).includes(uid));
+}
+function renderTeamBar() {
+  const t = teams[currentTeamId];
+  document.getElementById('teamNameLabel').textContent = t ? t.name : 'Room Planning Team';
+  document.getElementById('teamDescLabel').textContent = t && t.description ? t.description : '';
+  const listEl = document.getElementById('teamMenuList');
+  const mine = myTeamEntries();
+  listEl.innerHTML = mine.length
+    ? mine.map(([id, team]) => `
+        <button class="team-menu-team ${id===currentTeamId?'active':''}" onclick="switchTeam('${id}')">
+          ${esc(team.name)} <span style="color:var(--muted);font-weight:400">· ${(team.memberUids||[]).length} member${(team.memberUids||[]).length===1?'':'s'}</span>
+        </button>
+      `).join('')
+    : `<div style="padding:.5rem .8rem;font-size:.72rem;color:var(--muted);font-style:italic">No teams yet</div>`;
+}
+window.toggleTeamMenu = function() {
+  document.getElementById('teamMenu').classList.toggle('open');
+};
+window.switchTeam = function(id) {
+  currentTeamId = id;
+  if (currentUser) localStorage.setItem(`sb_team_${currentUser.uid}`, id);
+  document.getElementById('teamMenu').classList.remove('open');
+  renderTeamBar();
+  render();
+};
+
+// ── GENERIC MODAL ─────────────────────────────────────────
+function openModal(title, bodyHTML, onSave) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHTML;
+  const saveBtn = document.getElementById('modalSaveBtn');
+  saveBtn.onclick = async () => { await onSave(); };
+  document.getElementById('modalOverlay').classList.add('open');
+}
+window.closeModal = function() { document.getElementById('modalOverlay').classList.remove('open'); };
+
+window.openCreateTeamModal = function() {
+  document.getElementById('teamMenu').classList.remove('open');
+  openModal('New Team Board', `
+    <div class="form-row"><label>Team Name</label><input id="newTeamName" type="text" placeholder="e.g. Downtown Showroom"/></div>
+    <div class="form-row"><label>Description</label><textarea id="newTeamDesc" placeholder="What this board is for"></textarea></div>
+  `, async () => {
+    const name = document.getElementById('newTeamName').value.trim();
+    const description = document.getElementById('newTeamDesc').value.trim();
+    if (!name) { showToast('Give the team a name'); return; }
+    const ref = await addDoc(collection(db, 'teams'), {
+      name, description, memberUids: [currentUser.uid], ownerUid: currentUser.uid, createdAt: serverTimestamp()
+    });
+    closeModal();
+    switchTeam(ref.id);
+    showToast(`Created "${name}"`);
+  });
+};
+
+window.openJoinTeamModal = function() {
+  document.getElementById('teamMenu').classList.remove('open');
+  openModal('Join a Team', `
+    <div class="form-row"><label>Team ID</label><input id="joinTeamId" type="text" placeholder="Paste the Team ID you were given"/></div>
+    <div class="form-note">Ask a teammate to open Board Settings on the team you want — it shows the Team ID to share.</div>
+  `, async () => {
+    const id = document.getElementById('joinTeamId').value.trim();
+    if (!id) { showToast('Paste a Team ID'); return; }
+    const ref = doc(db, 'teams', id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) { showToast('No team found with that ID'); return; }
+    await updateDoc(ref, { memberUids: arrayUnion(currentUser.uid) });
+    closeModal();
+    switchTeam(id);
+    showToast(`Joined "${snap.data().name}"`);
+  });
+};
+
+window.openTeamSettingsModal = function() {
+  document.getElementById('teamMenu').classList.remove('open');
+  const t = teams[currentTeamId] || { name: '', description: '' };
+  openModal('Board Settings', `
+    <div class="form-row"><label>Team Name</label><input id="editTeamName" type="text" value="${esc(t.name)}"/></div>
+    <div class="form-row"><label>Description</label><textarea id="editTeamDesc">${esc(t.description||'')}</textarea></div>
+    <div class="form-note">Team ID (share this so others can join):<br/><code>${esc(currentTeamId)}</code></div>
+  `, async () => {
+    const name = document.getElementById('editTeamName').value.trim();
+    const description = document.getElementById('editTeamDesc').value.trim();
+    if (!name) { showToast("Team name can't be empty"); return; }
+    await updateDoc(doc(db, 'teams', currentTeamId), { name, description });
+    closeModal();
+    showToast('Board updated');
+  });
+};
+
 // ── GOALS ─────────────────────────────────────────────────
 function subscribeToGoals() {
   if (goalsUnsub) goalsUnsub();
-  // Load a generous rolling window so week nav +/- a few weeks works without re-querying constantly.
   goalsUnsub = onSnapshot(collection(db, 'goals'), snap => {
     goals = [];
     snap.forEach(d => goals.push({ id: d.id, ...d.data() }));
@@ -544,10 +817,17 @@ async function rolloverOverdueGoals() {
 }
 
 function goalsFor(dateStr, slot) {
+  const myUid = currentUser && currentUser.uid;
   return goals
     .filter(g => g.date === dateStr && g.slot === slot)
-    .filter(g => scopeFilter === 'team' || g.uid === (currentUser && currentUser.uid))
-    .sort((a,b) => (a.createdAtMs||0) - (b.createdAtMs||0));
+    .filter(g => (g.teamId || DEFAULT_TEAM_ID) === currentTeamId)
+    .filter(g => {
+      const mine = g.uid === myUid;
+      const visible = mine || g.visibility !== 'private'; // private goals only visible to their owner
+      if (!visible) return false;
+      return scopeFilter === 'team' ? true : mine;
+    })
+    .sort((a,b) => (a.order ?? a.createdAtMs ?? 0) - (b.order ?? b.createdAtMs ?? 0));
 }
 
 window.addGoal = async function(dateStr, slot) {
@@ -558,9 +838,12 @@ window.addGoal = async function(dateStr, slot) {
   await addDoc(collection(db, 'goals'), {
     text, date: dateStr, slot,
     uid: currentUser.uid,
+    teamId: currentTeamId,
+    visibility: scopeFilter === 'mine' ? 'private' : 'public',
     completed: false,
     createdAt: serverTimestamp(),
-    createdAtMs: Date.now()
+    createdAtMs: Date.now(),
+    order: Date.now()
   });
 };
 
@@ -593,7 +876,7 @@ window.deleteGoal = async function(id) {
   await deleteDoc(doc(db, 'goals', id));
 };
 
-// ── VIEW SWITCHING ────────────────────────────────────────
+// ── VIEW / SCOPE SWITCHING ─────────────────────────────────
 window.setScope = function(s) {
   scopeFilter = s;
   document.getElementById('scopeTeamBtn').classList.toggle('active', s === 'team');
@@ -623,7 +906,7 @@ window.jumpToToday = function() {
 
 // ── RENDER ────────────────────────────────────────────────
 function render() {
-  const wd = weekDates();
+  const wd = weekDates(); // always exactly Mon..Fri of the displayed week
   let weekSuffix;
   if (weekOffset === 0) weekSuffix = 'This Week';
   else if (weekOffset === -1) weekSuffix = 'Last Week';
@@ -632,14 +915,16 @@ function render() {
   document.getElementById('weekLabel').textContent =
     `${fmtShort(wd[0])} – ${fmtShort(wd[4])} · ${weekSuffix}`;
 
-  const board = document.getElementById('board');
   if (currentView === 'today') {
-    // Keep selectedDate inside current displayed week; default to today or Monday.
     if (!wd.includes(selectedDate)) selectedDate = (weekOffset === 0 && !isWeekend(todayStr())) ? todayStr() : wd[0];
-    board.innerHTML = renderTodayView(selectedDate, wd);
-  } else {
-    board.innerHTML = renderWeekView(wd);
   }
+
+  // "Today" jump button only shows when you're not already looking at today.
+  const atHome = currentView === 'today' && weekOffset === 0 && selectedDate === todayStr();
+  document.getElementById('todayJumpBtn').style.display = atHome ? 'none' : '';
+
+  const board = document.getElementById('board');
+  board.innerHTML = currentView === 'today' ? renderTodayView(selectedDate, wd) : renderWeekView(wd);
 }
 
 function renderTodayView(dateStr, wd) {
@@ -666,7 +951,7 @@ function renderTodayView(dateStr, wd) {
       <div class="today-hero-day">${fmtLong(dateStr)}</div>
       <div class="today-hero-sub">${dateStr === todayActual ? 'Today' : (viewingPast ? 'Past day' : 'Upcoming')}</div>
     </div>
-    <div class="drag-hint">Drag a goal to move it between slots, or click ✎ to change its owner, date, or slot directly.</div>
+    <div class="drag-hint">Drag a goal to reorder it, move it to a different slot, or drop it on another day in Week view. Click ✎ for owner, date, slot, or visibility.</div>
     ${pastNote}
     ${slotSectionHTML(dateStr, 'morning', '🌅', 'Morning')}
     ${slotSectionHTML(dateStr, 'afternoon', '🪑', 'Afternoon')}
@@ -695,28 +980,33 @@ function slotSectionHTML(dateStr, slot, icon, label) {
         <input class="add-goal-input" id="add-${dateStr}-${slot}" placeholder="Add ${article(label)} ${label.toLowerCase()} goal…" onkeydown="addGoalKeydown(event,'${dateStr}','${slot}')"/>
         <button class="add-goal-btn" onclick="addGoal('${dateStr}','${slot}')">Add</button>
       </div>
+      <div class="add-goal-note">${scopeFilter === 'mine' ? '🔒 New goals here start private (only you).' : '🌐 New goals here start public (visible to the team).'}</div>
     </div>
   `;
 }
 
 function goalCardHTML(g) {
   const editing = g.id === editingGoalId;
+  const isPrivate = g.visibility === 'private';
   return `
-    <div class="goal-card ${g.completed ? 'completed' : ''}"
+    <div class="goal-card ${g.completed ? 'completed' : ''} ${isPrivate ? 'is-private' : ''}"
          draggable="true"
          ondragstart="onGoalDragStart(event,'${g.id}')"
-         ondragend="onGoalDragEnd(event)">
+         ondragend="onGoalDragEnd(event)"
+         ondragover="event.preventDefault(); event.stopPropagation();"
+         ondrop="onGoalCardDrop(event,'${g.id}')">
       <button class="goal-check" onclick="toggleGoal('${g.id}')">${g.completed ? '✓' : ''}</button>
       <div class="goal-body">
         <div class="goal-text">${esc(g.text)}</div>
         <div class="goal-meta">
           <span class="goal-owner">${avatarHTML(g.uid)}<span class="owner-name">${esc(userName(g.uid))}</span></span>
+          ${isPrivate ? `<span class="private-badge">🔒 private</span>` : ''}
           ${g.rolled ? `<span class="rolled-badge">↻ rolled</span>` : ''}
         </div>
         ${editing ? goalEditFormHTML(g) : ''}
       </div>
       <div class="goal-actions">
-        <button class="gact" onclick="toggleEditGoal('${g.id}')" title="Change owner, date or slot">✎</button>
+        <button class="gact" onclick="toggleEditGoal('${g.id}')" title="Change owner, date, slot or visibility">✎</button>
         <button class="gact roll" onclick="rollGoal('${g.id}')" title="Move to next day">↻</button>
         <button class="gact del" onclick="deleteGoal('${g.id}')" title="Delete">✕</button>
       </div>
@@ -745,6 +1035,13 @@ function goalEditFormHTML(g) {
           <option value="afternoon" ${g.slot==='afternoon'?'selected':''}>Afternoon</option>
         </select>
       </div>
+      <div class="edit-row">
+        <label>Visible</label>
+        <select id="edit-vis-${g.id}">
+          <option value="public" ${g.visibility!=='private'?'selected':''}>Public — whole team</option>
+          <option value="private" ${g.visibility==='private'?'selected':''}>Private — just the owner</option>
+        </select>
+      </div>
       <div class="edit-actions">
         <button class="gact" onclick="toggleEditGoal('${g.id}')">Cancel</button>
         <button class="gact save" onclick="saveGoalEdit('${g.id}')">Save</button>
@@ -759,21 +1056,21 @@ window.toggleEditGoal = function(id) {
 };
 
 window.saveGoalEdit = async function(id) {
-  const uid  = document.getElementById(`edit-owner-${id}`).value;
-  const date = document.getElementById(`edit-date-${id}`).value;
-  const slot = document.getElementById(`edit-slot-${id}`).value;
+  const uid        = document.getElementById(`edit-owner-${id}`).value;
+  const date       = document.getElementById(`edit-date-${id}`).value;
+  const slot       = document.getElementById(`edit-slot-${id}`).value;
+  const visibility = document.getElementById(`edit-vis-${id}`).value;
   if (!date) { showToast('Pick a date'); return; }
   if (isWeekend(date)) { showToast('Pick a weekday — Mon to Fri only'); return; }
-  await updateDoc(doc(db, 'goals', id), { uid, date, slot, rolled: false });
+  await updateDoc(doc(db, 'goals', id), { uid, date, slot, visibility, rolled: false });
   editingGoalId = null;
   showToast('Goal updated');
 };
 
 // ── DRAG & DROP ──────────────────────────────────────────
-// Works for both the Today view's morning/afternoon lists and the
-// Week view's per-day slot columns — dropping onto either updates the
-// goal's date and slot directly (a quicker path than the edit panel
-// for "move this to Thursday afternoon" type changes).
+// Dropping on a specific goal card reorders within that slot (or moves +
+// inserts at that position if coming from elsewhere). Dropping on the
+// empty area of a slot appends to the end of that slot.
 window.onGoalDragStart = function(e, id) {
   e.dataTransfer.setData('text/plain', id);
   e.dataTransfer.effectAllowed = 'move';
@@ -796,8 +1093,33 @@ window.onSlotDrop = async function(e, dateStr, slot) {
   if (!id) return;
   const g = goals.find(x => x.id === id);
   if (!g || (g.date === dateStr && g.slot === slot)) return;
-  await updateDoc(doc(db, 'goals', id), { date: dateStr, slot, rolled: false });
+  const list = goalsFor(dateStr, slot);
+  await updateDoc(doc(db, 'goals', id), { date: dateStr, slot, rolled: false, order: (list[list.length-1]?.order ?? 0) + 1 });
   showToast(`Moved to ${fmtShort(dateStr)} · ${slot}`);
+};
+window.onGoalCardDrop = async function(e, targetId) {
+  e.preventDefault();
+  e.stopPropagation();
+  const sourceId = e.dataTransfer.getData('text/plain');
+  if (!sourceId || sourceId === targetId) return;
+  const target = goals.find(x => x.id === targetId);
+  const source = goals.find(x => x.id === sourceId);
+  if (!target || !source) return;
+  const sameList = source.date === target.date && source.slot === target.slot;
+  let list = goalsFor(target.date, target.slot).filter(x => x.id !== sourceId);
+  const idx = list.findIndex(x => x.id === targetId);
+  list.splice(idx, 0, source);
+  const updates = list.map((g, i) => {
+    const patch = { order: i };
+    if (g.id === sourceId) {
+      patch.date = target.date;
+      patch.slot = target.slot;
+      if (!sameList) patch.rolled = false;
+    }
+    return updateDoc(doc(db, 'goals', g.id), patch);
+  });
+  await Promise.all(updates);
+  showToast(sameList ? 'Reordered' : `Moved to ${fmtShort(target.date)} · ${target.slot}`);
 };
 
 function renderWeekView(wd) {
@@ -830,10 +1152,12 @@ function weekSlotHTML(dateStr, slot, icon) {
            ondragleave="onSlotDragLeave(event)"
            ondrop="onSlotDrop(event,'${dateStr}','${slot}')">
         ${list.length ? list.map(g => `
-          <div class="wk-goal ${g.completed?'completed':''}"
+          <div class="wk-goal ${g.completed?'completed':''} ${g.visibility==='private'?'is-private':''}"
                draggable="true"
                ondragstart="onGoalDragStart(event,'${g.id}')"
                ondragend="onGoalDragEnd(event)"
+               ondragover="event.preventDefault(); event.stopPropagation();"
+               ondrop="onGoalCardDrop(event,'${g.id}')"
                onclick="setView('today');selectDay('${dateStr}')">
             ${esc(g.text)}
             <span class="wk-goal-owner">${esc(userName(g.uid))}</span>
@@ -854,9 +1178,6 @@ window.showToast = msg => {
   clearTimeout(window._toastT);
   window._toastT = setTimeout(()=>t.classList.remove('show'), 2400);
 };
-
-// initial selected date snaps to a weekday
-selectedDate = isWeekend(todayStr()) ? nextWeekday(todayStr()) : todayStr();
 </script>
 </body>
 </html>
