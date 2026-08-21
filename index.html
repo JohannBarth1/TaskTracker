@@ -417,6 +417,22 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .toast { position: fixed; bottom: 1.4rem; right: 1.8rem; background: var(--ink); color: var(--light-brown); padding: .6rem 1.1rem; border-radius: 3px; font-size: .82rem; font-weight: 700; opacity: 0; transform: translateY(6px); transition: opacity .3s, transform .3s; pointer-events: none; z-index: 400; }
 .toast.show { opacity: 1; transform: translateY(0); }
 
+@media (max-width: 760px) {
+  /* The toolbar previously relied on horizontal scroll with a hidden
+     scrollbar, which meant the view/board toggles could be scrolled
+     off-screen with no visual cue that more controls existed. On
+     narrow screens it wraps onto multiple lines instead, and the bars
+     above it drop out of the sticky stack so their (variable) wrapped
+     height never overlaps the content below. */
+  .team-bar, .toolbar, .presence-bar { position: static; }
+  .toolbar { flex-wrap: wrap; height: auto; padding: .5rem .75rem; row-gap: .4rem; }
+  .toolbar-spacer { display: none; }
+  .toggle-group { flex-wrap: wrap; }
+  .matrix-wrap { flex-direction: column; }
+  .matrix-axis-y { display: none; }
+  .matrix-grid { grid-template-columns: 1fr; grid-template-rows: none; min-height: auto; }
+}
+
 @media (max-width: 600px) {
   .main { padding: .8rem .75rem 5rem; }
   .brand-title { font-size: 1.05rem; }
@@ -624,6 +640,16 @@ onAuthStateChanged(auth, async user => {
       lastSeen: serverTimestamp()
     }, { merge: true });
     currentTeamId = localStorage.getItem(`sb_team_${user.uid}`) || DEFAULT_TEAM_ID;
+    scopeFilter = localStorage.getItem(`sb_scope_${user.uid}`) || 'team';
+    currentView = localStorage.getItem(`sb_view_${user.uid}`) || 'today';
+    if (currentView === 'matrix' && scopeFilter !== 'mine') currentView = 'today'; // guard against a stale/invalid combo
+    document.getElementById('scopeTeamBtn').classList.toggle('active', scopeFilter === 'team');
+    document.getElementById('scopeMineBtn').classList.toggle('active', scopeFilter === 'mine');
+    document.body.classList.toggle('scope-mine', scopeFilter === 'mine');
+    document.getElementById('viewMatrixBtn').style.display = scopeFilter === 'mine' ? '' : 'none';
+    document.getElementById('viewTodayBtn').classList.toggle('active', currentView === 'today');
+    document.getElementById('viewWeekBtn').classList.toggle('active', currentView === 'week');
+    document.getElementById('viewMatrixBtn').classList.toggle('active', currentView === 'matrix');
     await ensureDefaultTeamMembership();
     await acceptPendingInvites();
     subscribeToUsers();
@@ -1096,6 +1122,7 @@ window.setScope = function(s) {
   document.getElementById('scopeMineBtn').classList.toggle('active', s === 'mine');
   document.body.classList.toggle('scope-mine', s === 'mine');
   document.getElementById('viewMatrixBtn').style.display = s === 'mine' ? '' : 'none';
+  if (currentUser) localStorage.setItem(`sb_scope_${currentUser.uid}`, s);
   if (s === 'team' && currentView === 'matrix') { setView('today'); return; }
   render();
 };
@@ -1105,6 +1132,7 @@ window.setView = function(v) {
   document.getElementById('viewTodayBtn').classList.toggle('active', v === 'today');
   document.getElementById('viewWeekBtn').classList.toggle('active', v === 'week');
   document.getElementById('viewMatrixBtn').classList.toggle('active', v === 'matrix');
+  if (currentUser) localStorage.setItem(`sb_view_${currentUser.uid}`, v);
   render();
 };
 
@@ -1466,7 +1494,7 @@ function renderMatrixView() {
       </div>
       <div class="matrix-unrated-tray"
            ondragover="onMatrixDragOver(event)" ondragleave="onMatrixDragLeave(event)" ondrop="onMatrixTrayDrop(event)">
-        ${unrated.length ? unrated.map(matrixGoalHTML).join('') : `<div class="matrix-unrated-empty">Nothing waiting to be rated</div>`}
+        ${unrated.length ? unrated.map(g => matrixGoalHTML(g, null, null)).join('') : `<div class="matrix-unrated-empty">Nothing waiting to be rated</div>`}
       </div>
     </div>
     <div class="matrix-wrap">
@@ -1491,26 +1519,54 @@ function matrixQuadHTML(cls, title, sub, list) {
          ondragover="onMatrixDragOver(event)" ondragleave="onMatrixDragLeave(event)" ondrop="onMatrixDrop(event,${effort},${reward})">
       <div class="matrix-quad-title">${title}</div>
       <div class="matrix-quad-sub">${sub}</div>
-      ${list.length ? list.map(matrixGoalHTML).join('') : `<div class="matrix-quad-empty">Drop a goal here</div>`}
+      ${list.length ? list.map(g => matrixGoalHTML(g, effort, reward)).join('') : `<div class="matrix-quad-empty">Drop a goal here</div>`}
     </div>
   `;
 }
 
-function matrixGoalHTML(g) {
+// Matrix cards reuse the same anatomy as every other goal tile (check,
+// owner, ✎ edit / ↻ roll / ✕ delete) so goals act identically everywhere —
+// clicking never jumps views. Dropping directly onto a card sets the same
+// effort/reward as dropping on the quadrant it's in.
+function matrixGoalHTML(g, effort, reward) {
+  const editing = g.id === editingGoalId;
+  const isPrivate = g.visibility === 'private';
   return `
-    <div class="matrix-goal"
+    <div class="goal-card matrix-goal ${g.completed ? 'completed' : ''} ${isPrivate ? 'is-private' : ''}"
          draggable="true"
          ondragstart="onGoalDragStart(event,'${g.id}')"
          ondragend="onGoalDragEnd(event)"
-         onclick="setScope('mine');setView('today');selectDay('${g.date}')">
-      <div class="matrix-goal-text">${esc(g.text)}</div>
-      <div class="matrix-goal-meta">
-        <span>${fmtShort(g.date)}${g.date===todayStr()?' · Today':''}</span>
-        <span class="team-chip-mini">${esc(teamName(g.teamId))}</span>
+         ondragover="event.preventDefault(); event.stopPropagation();"
+         ondrop="onMatrixCardDrop(event,${effort===null?'null':effort},${reward===null?'null':reward})">
+      <button class="goal-check" onclick="toggleGoal('${g.id}')">${g.completed ? '✓' : ''}</button>
+      <div class="goal-body">
+        <div class="goal-text">${esc(g.text)}</div>
+        <div class="goal-meta">
+          <span class="goal-owner">${avatarHTML(g.uid)}<span class="owner-name">${esc(userName(g.uid))}</span></span>
+          ${isPrivate ? `<span class="private-badge">🔒 private</span>` : ''}
+          ${g.rolled ? `<span class="rolled-badge">↻ rolled</span>` : ''}
+          <span class="team-chip-mini">${esc(teamName(g.teamId))}</span>
+          <span class="team-chip-mini">${fmtShort(g.date)}${g.date===todayStr()?' · Today':''}</span>
+        </div>
+        ${editing ? goalEditFormHTML(g) : ''}
+      </div>
+      <div class="goal-actions">
+        <button class="gact" onclick="toggleEditGoal('${g.id}')" title="Change owner, date, slot or visibility">✎</button>
+        <button class="gact roll" onclick="rollGoal('${g.id}')" title="Move to next day">↻</button>
+        <button class="gact del" onclick="deleteGoal('${g.id}')" title="Delete">✕</button>
       </div>
     </div>
   `;
 }
+
+window.onMatrixCardDrop = async function(e, effort, reward) {
+  e.preventDefault();
+  e.stopPropagation();
+  const id = e.dataTransfer.getData('text/plain');
+  if (!id) return;
+  await updateDoc(doc(db, 'goals', id), { effort, reward });
+  showToast(effort === null ? 'Moved back to unrated' : 'Priority updated');
+};
 
 window.onMatrixDragOver = function(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); };
 window.onMatrixDragLeave = function(e) { e.currentTarget.classList.remove('drag-over'); };
