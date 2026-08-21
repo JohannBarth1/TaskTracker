@@ -162,6 +162,27 @@ header {
 .daypill.active .daypill-tag { color: var(--gold); }
 .past-note { text-align: center; font-size: .68rem; color: var(--muted); font-style: italic; margin: -.4rem 0 1rem; }
 
+/* ── EDIT PANEL (owner / date / slot) ── */
+.goal-edit-form { margin-top: .55rem; padding: .55rem .6rem; background: var(--panel); border-radius: 6px; display: flex; flex-direction: column; gap: .4rem; }
+.edit-row { display: flex; align-items: center; gap: .5rem; }
+.edit-row label { font-size: .58rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; width: 46px; flex-shrink: 0; }
+.edit-row select, .edit-row input { flex: 1; padding: .32rem .45rem; border: 1px solid var(--border); border-radius: 4px; font-family: 'Lato', sans-serif; font-size: .8rem; background: var(--warm-white); outline: none; }
+.edit-row select:focus, .edit-row input:focus { border-color: var(--gold); }
+.edit-actions { display: flex; gap: .4rem; justify-content: flex-end; }
+.gact.save { background: var(--gold); color: #fff; border-color: var(--gold); }
+.gact.save:hover { background: #a87820; color: #fff; }
+
+/* ── DRAG & DROP ── */
+.goal-card[draggable="true"] { cursor: grab; }
+.goal-card.dragging { opacity: .35; }
+.goal-list { border-radius: 6px; transition: background .12s, outline .12s; min-height: 8px; }
+.goal-list.drag-over { background: var(--light-brown); outline: 2px dashed var(--gold); outline-offset: 2px; }
+.wk-slot-body { border-radius: 4px; transition: background .12s, outline .12s; min-height: 6px; }
+.wk-slot-body.drag-over { background: var(--light-brown); outline: 2px dashed var(--gold); outline-offset: 1px; }
+.wk-goal[draggable="true"] { cursor: grab; }
+.wk-goal.dragging { opacity: .35; }
+.drag-hint { text-align: center; font-size: .62rem; color: var(--muted); font-style: italic; margin: -.5rem 0 .8rem; }
+
 /* ── MAIN ── */
 .main { flex: 1; padding: 1rem 1rem 5rem; max-width: 980px; width: 100%; margin: 0 auto; }
 
@@ -353,6 +374,7 @@ let goalsUnsub   = null;
 let usersUnsub   = null;
 let currentView  = 'today';  // 'today' | 'week'
 let scopeFilter  = 'team';   // 'team' (everyone) | 'mine' (just current user, same days/slots)
+let editingGoalId = null;   // id of the goal currently showing its inline edit panel
 let weekOffset   = 0;        // 0 = this week, -1 = last week, +1 = next week
 let selectedDate = todayStr(); // used in today view; snaps to nearest weekday
 
@@ -644,6 +666,7 @@ function renderTodayView(dateStr, wd) {
       <div class="today-hero-day">${fmtLong(dateStr)}</div>
       <div class="today-hero-sub">${dateStr === todayActual ? 'Today' : (viewingPast ? 'Past day' : 'Upcoming')}</div>
     </div>
+    <div class="drag-hint">Drag a goal to move it between slots, or click ✎ to change its owner, date, or slot directly.</div>
     ${pastNote}
     ${slotSectionHTML(dateStr, 'morning', '🌅', 'Morning')}
     ${slotSectionHTML(dateStr, 'afternoon', '🪑', 'Afternoon')}
@@ -662,8 +685,11 @@ function slotSectionHTML(dateStr, slot, icon, label) {
         <span class="slot-count">${list.length}</span>
         <div class="slot-line"></div>
       </div>
-      <div class="goal-list">
-        ${list.length ? list.map(goalCardHTML).join('') : `<div class="empty-slot">Nothing planned yet</div>`}
+      <div class="goal-list"
+           ondragover="onSlotDragOver(event)"
+           ondragleave="onSlotDragLeave(event)"
+           ondrop="onSlotDrop(event,'${dateStr}','${slot}')">
+        ${list.length ? list.map(goalCardHTML).join('') : `<div class="empty-slot">Nothing planned yet — or drag a goal here</div>`}
       </div>
       <div class="add-goal-row">
         <input class="add-goal-input" id="add-${dateStr}-${slot}" placeholder="Add ${article(label)} ${label.toLowerCase()} goal…" onkeydown="addGoalKeydown(event,'${dateStr}','${slot}')"/>
@@ -674,8 +700,12 @@ function slotSectionHTML(dateStr, slot, icon, label) {
 }
 
 function goalCardHTML(g) {
+  const editing = g.id === editingGoalId;
   return `
-    <div class="goal-card ${g.completed ? 'completed' : ''}">
+    <div class="goal-card ${g.completed ? 'completed' : ''}"
+         draggable="true"
+         ondragstart="onGoalDragStart(event,'${g.id}')"
+         ondragend="onGoalDragEnd(event)">
       <button class="goal-check" onclick="toggleGoal('${g.id}')">${g.completed ? '✓' : ''}</button>
       <div class="goal-body">
         <div class="goal-text">${esc(g.text)}</div>
@@ -683,14 +713,92 @@ function goalCardHTML(g) {
           <span class="goal-owner">${avatarHTML(g.uid)}<span class="owner-name">${esc(userName(g.uid))}</span></span>
           ${g.rolled ? `<span class="rolled-badge">↻ rolled</span>` : ''}
         </div>
+        ${editing ? goalEditFormHTML(g) : ''}
       </div>
       <div class="goal-actions">
+        <button class="gact" onclick="toggleEditGoal('${g.id}')" title="Change owner, date or slot">✎</button>
         <button class="gact roll" onclick="rollGoal('${g.id}')" title="Move to next day">↻</button>
         <button class="gact del" onclick="deleteGoal('${g.id}')" title="Delete">✕</button>
       </div>
     </div>
   `;
 }
+
+function goalEditFormHTML(g) {
+  const ownerOptions = Object.entries(users)
+    .map(([uid,u]) => `<option value="${uid}" ${uid===g.uid?'selected':''}>${esc(u.displayName || u.email || 'Someone')}</option>`)
+    .join('');
+  return `
+    <div class="goal-edit-form" onclick="event.stopPropagation()">
+      <div class="edit-row">
+        <label>Owner</label>
+        <select id="edit-owner-${g.id}">${ownerOptions}</select>
+      </div>
+      <div class="edit-row">
+        <label>Date</label>
+        <input type="date" id="edit-date-${g.id}" value="${g.date}"/>
+      </div>
+      <div class="edit-row">
+        <label>Slot</label>
+        <select id="edit-slot-${g.id}">
+          <option value="morning" ${g.slot==='morning'?'selected':''}>Morning</option>
+          <option value="afternoon" ${g.slot==='afternoon'?'selected':''}>Afternoon</option>
+        </select>
+      </div>
+      <div class="edit-actions">
+        <button class="gact" onclick="toggleEditGoal('${g.id}')">Cancel</button>
+        <button class="gact save" onclick="saveGoalEdit('${g.id}')">Save</button>
+      </div>
+    </div>
+  `;
+}
+
+window.toggleEditGoal = function(id) {
+  editingGoalId = (editingGoalId === id) ? null : id;
+  render();
+};
+
+window.saveGoalEdit = async function(id) {
+  const uid  = document.getElementById(`edit-owner-${id}`).value;
+  const date = document.getElementById(`edit-date-${id}`).value;
+  const slot = document.getElementById(`edit-slot-${id}`).value;
+  if (!date) { showToast('Pick a date'); return; }
+  if (isWeekend(date)) { showToast('Pick a weekday — Mon to Fri only'); return; }
+  await updateDoc(doc(db, 'goals', id), { uid, date, slot, rolled: false });
+  editingGoalId = null;
+  showToast('Goal updated');
+};
+
+// ── DRAG & DROP ──────────────────────────────────────────
+// Works for both the Today view's morning/afternoon lists and the
+// Week view's per-day slot columns — dropping onto either updates the
+// goal's date and slot directly (a quicker path than the edit panel
+// for "move this to Thursday afternoon" type changes).
+window.onGoalDragStart = function(e, id) {
+  e.dataTransfer.setData('text/plain', id);
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.classList.add('dragging');
+};
+window.onGoalDragEnd = function(e) {
+  e.currentTarget.classList.remove('dragging');
+};
+window.onSlotDragOver = function(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+};
+window.onSlotDragLeave = function(e) {
+  e.currentTarget.classList.remove('drag-over');
+};
+window.onSlotDrop = async function(e, dateStr, slot) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const id = e.dataTransfer.getData('text/plain');
+  if (!id) return;
+  const g = goals.find(x => x.id === id);
+  if (!g || (g.date === dateStr && g.slot === slot)) return;
+  await updateDoc(doc(db, 'goals', id), { date: dateStr, slot, rolled: false });
+  showToast(`Moved to ${fmtShort(dateStr)} · ${slot}`);
+};
 
 function renderWeekView(wd) {
   const today = todayStr();
@@ -717,12 +825,21 @@ function weekSlotHTML(dateStr, slot, icon) {
   return `
     <div>
       <div class="wk-slot-label">${icon} ${slot}</div>
-      ${list.length ? list.map(g => `
-        <div class="wk-goal ${g.completed?'completed':''}" onclick="setView('today');selectDay('${dateStr}')" style="cursor:pointer">
-          ${esc(g.text)}
-          <span class="wk-goal-owner">${esc(userName(g.uid))}</span>
-        </div>
-      `).join('') : `<div class="wk-empty">—</div>`}
+      <div class="wk-slot-body"
+           ondragover="onSlotDragOver(event)"
+           ondragleave="onSlotDragLeave(event)"
+           ondrop="onSlotDrop(event,'${dateStr}','${slot}')">
+        ${list.length ? list.map(g => `
+          <div class="wk-goal ${g.completed?'completed':''}"
+               draggable="true"
+               ondragstart="onGoalDragStart(event,'${g.id}')"
+               ondragend="onGoalDragEnd(event)"
+               onclick="setView('today');selectDay('${dateStr}')">
+            ${esc(g.text)}
+            <span class="wk-goal-owner">${esc(userName(g.uid))}</span>
+          </div>
+        `).join('') : `<div class="wk-empty">— drop here —</div>`}
+      </div>
     </div>
   `;
 }
