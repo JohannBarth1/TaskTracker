@@ -458,8 +458,8 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   <div class="toggle-group">
     <span class="toggle-cap">View</span>
     <div class="view-toggle">
-      <button class="vpill active" id="viewTodayBtn" onclick="setView('today')">Today</button>
-      <button class="vpill" id="viewWeekBtn" onclick="setView('week')">This Week</button>
+      <button class="vpill active" id="viewTodayBtn" onclick="setView('today')">Day</button>
+      <button class="vpill" id="viewWeekBtn" onclick="setView('week')">Week</button>
     </div>
   </div>
 </div>
@@ -634,6 +634,23 @@ async function acceptPendingInvites() {
     if (joined) showToast(`Joined ${joined} team${joined > 1 ? 's' : ''} via invite`);
   } catch (e) { console.error('acceptPendingInvites failed', e); }
 }
+
+function addableUserOptionsHTML(currentMemberUids) {
+  const options = Object.entries(users)
+    .filter(([uid]) => !currentMemberUids.includes(uid))
+    .sort((a,b) => (userName(a[0])||'').localeCompare(userName(b[0])||''))
+    .map(([uid,u]) => `<option value="${uid}">${esc(u.displayName || u.email || 'Someone')}</option>`)
+    .join('');
+  return options || '<option value="">No other known users</option>';
+}
+
+window.addMemberDirectly = async function(teamId) {
+  const uid = document.getElementById('addMemberSelect').value;
+  if (!uid) { showToast('No user selected'); return; }
+  await updateDoc(doc(db, 'teams', teamId), { memberUids: arrayUnion(uid) });
+  showToast(`Added ${userName(uid)} to the team`);
+  openTeamSettingsModal(); // re-render the modal with the updated member list
+};
 
 window.sendInvite = async function(teamId) {
   const input = document.getElementById('inviteEmailInput');
@@ -858,12 +875,20 @@ window.openTeamSettingsModal = function() {
     <div class="form-row"><label>Description</label><textarea id="editTeamDesc">${esc(t.description||'')}</textarea></div>
     <div class="form-row"><label>Members (${(t.memberUids||[]).length})</label>${membersHTML}</div>
     <div class="form-row">
+      <label>Add a Known User</label>
+      <div style="display:flex;gap:.4rem">
+        <select id="addMemberSelect" style="flex:1">${addableUserOptionsHTML(t.memberUids||[])}</select>
+        <button class="btn btn-save" style="flex-shrink:0" onclick="addMemberDirectly('${currentTeamId}')">Add</button>
+      </div>
+      <div class="form-note" style="margin-top:.3rem">Adds them immediately — no invite step, no acceptance needed. Only lists people who've signed into this app at least once.</div>
+    </div>
+    <div class="form-row">
       <label>Invite by Email</label>
       <div style="display:flex;gap:.4rem">
         <input id="inviteEmailInput" type="email" placeholder="teammate@email.com" style="flex:1"/>
         <button class="btn btn-save" style="flex-shrink:0" onclick="sendInvite('${currentTeamId}')">Invite</button>
       </div>
-      <div class="form-note" style="margin-top:.3rem">No email gets sent — they just need to sign in with Google using this address, and they'll be added automatically.</div>
+      <div class="form-note" style="margin-top:.3rem">For someone who hasn't signed in yet — no email gets sent, they just need to sign in with Google using this address, and they'll be added automatically.</div>
       <div id="pendingInvitesList" style="margin-top:.4rem">Loading…</div>
     </div>
     <div class="form-note">Team ID (share this so others can join by pasting it):<br/><code>${esc(currentTeamId)}</code></div>
