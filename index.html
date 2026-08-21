@@ -689,6 +689,8 @@ function subscribeToTeams() {
     }
     renderTeamBar();
     render();
+  }, err => {
+    console.error('teams subscription failed (check Firestore rules for /teams):', err);
   });
 }
 function myTeamEntries() {
@@ -796,13 +798,33 @@ function subscribeToGoals() {
   }, err => { console.error(err); setSyncState('error'); });
 }
 
-// Any incomplete goal left on a past weekday automatically moves to the
-// next available weekday (today, if today is Mon-Fri and still ahead of it).
+// Two cleanup passes run every time goals load:
+//  1) Weekend fix — any goal (complete or not) that ended up dated on a
+//     Sat/Sun is invalid in this Mon-Fri-only app and would otherwise be
+//     permanently invisible (the UI never renders weekend columns). This
+//     mainly catches goals created before a timezone bug in an earlier
+//     version was fixed, which could silently shift dates onto a weekend.
+//  2) Rollover — any incomplete goal left on a past weekday moves to the
+//     next available weekday (today, if today is Mon-Fri and still ahead).
 let rollingInFlight = new Set();
 async function rolloverOverdueGoals() {
   const today = todayStr();
   const target = isWeekend(today) ? nextWeekday(today) : today;
-  const overdue = goals.filter(g => !g.completed && g.date < target && !rollingInFlight.has(g.id));
+
+  const weekendStuck = goals.filter(g => isWeekend(g.date) && !rollingInFlight.has(g.id));
+  for (const g of weekendStuck) {
+    rollingInFlight.add(g.id);
+    try {
+      await updateDoc(doc(db, 'goals', g.id), {
+        date: nextWeekday(g.date),
+        rolled: true,
+        rolledFrom: g.rolledFrom || g.date
+      });
+    } catch (e) { console.error('weekend fix failed', e); }
+    finally { rollingInFlight.delete(g.id); }
+  }
+
+  const overdue = goals.filter(g => !g.completed && !isWeekend(g.date) && g.date < target && !rollingInFlight.has(g.id));
   for (const g of overdue) {
     rollingInFlight.add(g.id);
     try {
