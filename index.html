@@ -1621,7 +1621,6 @@ function matrixGoalHTML(g, effort, reward) {
           ${isPrivate ? `<span class="private-badge">🔒 private</span>` : ''}
           ${g.rolled ? `<span class="rolled-badge">↻ rolled</span>` : ''}
           <span class="team-chip-mini">${esc(teamName(g.teamId))}</span>
-          <span class="team-chip-mini">${fmtShort(g.date)}${g.date===todayStr()?' · Today':''}</span>
         </div>
         ${editing ? goalEditFormHTML(g) : ''}
       </div>
