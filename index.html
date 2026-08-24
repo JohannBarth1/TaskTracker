@@ -645,7 +645,7 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   <div class="app-shell">
     <div class="scratch-sidebar-col">
       <div class="quick-add-box">
-        <div class="quick-add-label">➕ Quick Add — today, ☕ before noon / 🛋️ after</div>
+        <div class="quick-add-label">➕ Quick Add</div>
         <div class="add-goal-row">
           <input class="add-goal-input" id="quickAddInput" placeholder="Add a goal for today…" onkeydown="quickAddKeydown(event)"/>
           <button class="add-goal-btn" onclick="quickAddGoal()">Add</button>
@@ -1360,34 +1360,6 @@ window.addGoalKeydown = function(e, dateStr, slot) {
   if (e.key === 'Enter') { e.preventDefault(); addGoal(dateStr, slot); }
 };
 
-// Adding straight from the Matrix view: no day/slot picker there, so it
-// lands on the next open weekday, morning slot, unrated — same as any
-// other new goal, just dropped into the "Needs Rating" tray to start.
-window.addGoalFromMatrix = async function() {
-  const input = document.getElementById('matrixNewGoalInput');
-  const text = (input.value || '').trim();
-  if (!text) return;
-  input.value = '';
-  input.focus();
-  const date = isWeekend(todayStr()) ? nextWeekday(todayStr()) : todayStr();
-  await addDoc(collection(db, 'goals'), {
-    text, date, slot: 'morning',
-    uid: currentUser.uid,
-    teamId: currentTeamId,
-    visibility: 'private',
-    completed: false,
-    effort: null,
-    reward: null,
-    createdAt: serverTimestamp(),
-    createdAtMs: Date.now(),
-    order: Date.now()
-  });
-  showToast('Added — drag it into a quadrant when ready');
-};
-window.matrixAddGoalKeydown = function(e) {
-  if (e.key === 'Enter') { e.preventDefault(); addGoalFromMatrix(); }
-};
-
 // Quick Add box above the Scratchboard — visible on every view, always
 // targets today (or the next weekday if today's a weekend) and picks the
 // slot from the current wall-clock time: before noon goes to Morning,
@@ -1905,11 +1877,7 @@ function renderMatrixView() {
   const quad = (effort, reward) => mine.filter(g => g.effort === effort && g.reward === reward);
 
   return `
-    <div class="matrix-intro">Every future goal you own, across every team. Drag a card into a quadrant to set its priority.</div>
-    <div class="add-goal-row" style="margin-bottom:1rem">
-      <input class="add-goal-input" id="matrixNewGoalInput" placeholder="Add a goal — lands in Needs Rating, on today's date" onkeydown="matrixAddGoalKeydown(event)"/>
-      <button class="add-goal-btn" onclick="addGoalFromMatrix()">Add</button>
-    </div>
+    <div class="matrix-intro">Every future goal you own, across every team. Drag a card into a quadrant to set its priority — or use Quick Add on the left.</div>
     <div class="matrix-unrated">
       <div class="matrix-unrated-hdr">
         <span class="matrix-unrated-title">Needs Rating (${unrated.length})</span>
