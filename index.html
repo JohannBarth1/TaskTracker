@@ -371,20 +371,23 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   padding: .1rem .3rem; border: 1px solid var(--gold); border-radius: 4px; background: var(--warm-white); outline: none;
 }
 .goal-card.completed .goal-text { text-decoration: line-through; color: var(--muted); }
-.goal-meta { display: flex; align-items: center; gap: .4rem; margin-top: .3rem; flex-wrap: wrap; }
-.goal-owner { display: flex; align-items: center; gap: .3rem; }
-.owner-avatar { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-.owner-avatar-init { width: 16px; height: 16px; border-radius: 50%; background: var(--brown); color: var(--light-brown); font-size: .48rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.owner-name { font-size: .66rem; color: var(--muted); font-weight: 700; }
-.rolled-badge { font-size: .58rem; color: var(--gold); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.private-badge { font-size: .7rem; line-height: 1; }
+.goal-meta { display: flex; align-items: center; gap: .5rem; margin-top: .32rem; flex-wrap: wrap; }
+.goal-owner { display: flex; align-items: center; gap: .32rem; }
+.owner-avatar { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.owner-avatar-init { width: 18px; height: 18px; border-radius: 50%; background: var(--brown); color: var(--light-brown); font-size: .5rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.owner-name { font-size: .7rem; color: var(--muted); font-weight: 700; }
+.rolled-badge { font-size: .58rem; color: var(--gold); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
 /* Owner / team / visibility are editable right on the tile now — these
    tags double as buttons, so give them pointer + hover feedback without
    disturbing the badge-specific colors/borders each already carries. */
 .meta-tag-btn { cursor: pointer; font-family: inherit; outline: none; transition: opacity .15s; }
 .meta-tag-btn:hover { opacity: .72; }
 .goal-owner.meta-tag-btn { border: none; background: none; padding: 0; margin: 0; }
-.goal-actions { display: flex; gap: .3rem; flex-shrink: 0; }
+.private-badge { font-size: .82rem; line-height: 1; border: none; background: none; padding: 2px; margin: 0; }
+.team-chip-mini { font-size: .64rem; padding: 2px 8px; border-radius: 9px; }
+.goal-actions { display: flex; flex-direction: column; align-items: flex-end; gap: .3rem; flex-shrink: 0; }
+.goal-actions-row { display: flex; gap: .3rem; }
+.goal-actions .rolled-badge { margin-top: -.05rem; }
 .gact {
   background: none; border: 1px solid var(--border); border-radius: 999px; cursor: pointer;
   font-size: .65rem; padding: .25rem .6rem; color: var(--muted); transition: all .15s;
@@ -1845,15 +1848,17 @@ function goalCardHTML(g) {
           ${ownerTagHTML(g)}
           ${isMine && scopeFilter === 'team' ? `<span class="mine-badge">★ You</span>` : ''}
           ${visibilityTagHTML(g)}
-          ${g.rolled ? `<span class="rolled-badge">↻ rolled</span>` : ''}
           ${scopeFilter === 'mine' ? teamTagHTML(g) : ''}
         </div>
         ${editing ? goalEditFormHTML(g) : ''}
       </div>
       <div class="goal-actions">
-        <button class="gact" onclick="toggleEditGoal('${g.id}')" title="Expand to edit owner, date, slot or visibility">${editing ? '▲' : '▾'}</button>
-        <button class="gact roll" onclick="rollGoal('${g.id}')" title="Move to next day">↻</button>
-        <button class="gact del" onclick="deleteGoal('${g.id}')" title="Delete">✕</button>
+        <div class="goal-actions-row">
+          <button class="gact" onclick="toggleEditGoal('${g.id}')" title="Expand to edit owner, date, slot or visibility">${editing ? '▲' : '▾'}</button>
+          <button class="gact roll" onclick="rollGoal('${g.id}')" title="Move to next day">↻</button>
+          <button class="gact del" onclick="deleteGoal('${g.id}')" title="Delete">✕</button>
+        </div>
+        ${g.rolled ? `<span class="rolled-badge">↻ rolled</span>` : ''}
       </div>
     </div>
   `;
@@ -2362,15 +2367,17 @@ function matrixGoalHTML(g, effort, reward) {
         <div class="goal-meta">
           ${ownerTagHTML(g)}
           ${visibilityTagHTML(g)}
-          ${g.rolled ? `<span class="rolled-badge">↻ rolled</span>` : ''}
           ${teamTagHTML(g)}
         </div>
         ${editing ? goalEditFormHTML(g) : ''}
       </div>
       <div class="goal-actions">
-        <button class="gact" onclick="toggleEditGoal('${g.id}')" title="Expand to edit owner, date, slot or visibility">${editing ? '▲' : '▾'}</button>
-        <button class="gact roll" onclick="rollGoal('${g.id}')" title="Move to next day">↻</button>
-        <button class="gact del" onclick="deleteGoal('${g.id}')" title="Delete">✕</button>
+        <div class="goal-actions-row">
+          <button class="gact" onclick="toggleEditGoal('${g.id}')" title="Expand to edit owner, date, slot or visibility">${editing ? '▲' : '▾'}</button>
+          <button class="gact roll" onclick="rollGoal('${g.id}')" title="Move to next day">↻</button>
+          <button class="gact del" onclick="deleteGoal('${g.id}')" title="Delete">✕</button>
+        </div>
+        ${g.rolled ? `<span class="rolled-badge">↻ rolled</span>` : ''}
       </div>
     </div>
   `;
