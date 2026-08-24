@@ -442,9 +442,17 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .matrix-goal-text { font-size: .78rem; line-height: 1.35; word-break: break-word; }
 .matrix-goal-meta { font-size: .6rem; color: var(--muted); margin-top: 3px; display: flex; gap: .35rem; flex-wrap: wrap; align-items: center; }
 
-/* ── SCRATCHBOARD SIDEBAR ── */
-.scratch-sidebar {
+/* ── SCRATCHBOARD SIDEBAR (+ its Quick Add box above it) ── */
+.scratch-sidebar-col {
   flex: 0 0 380px; min-width: 280px; max-width: 420px;
+  display: flex; flex-direction: column; gap: .8rem;
+}
+.quick-add-box {
+  border: 1px solid var(--rust); border-radius: 8px; background: #fff7ef;
+  padding: .6rem .7rem; display: flex; flex-direction: column; gap: .4rem;
+}
+.quick-add-label { font-size: .62rem; letter-spacing: .08em; text-transform: uppercase; color: var(--rust); font-weight: 700; }
+.scratch-sidebar {
   border: 1px solid var(--border); border-radius: 8px; background: var(--warm-white);
   padding: .8rem .9rem; display: flex; flex-direction: column; gap: .7rem;
 }
@@ -529,7 +537,7 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   .matrix-axis-y { display: none; }
   .matrix-grid { grid-template-columns: 1fr; grid-template-rows: none; min-height: auto; }
   .app-shell { flex-direction: column; }
-  .scratch-sidebar { max-width: none; min-width: 0; width: 100%; flex: 1 1 auto; }
+  .scratch-sidebar-col { max-width: none; min-width: 0; width: 100%; flex: 1 1 auto; }
 }
 
 @media (max-width: 600px) {
@@ -635,7 +643,16 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 
 <main class="main">
   <div class="app-shell">
-    <div class="scratch-sidebar" id="scratchSidebar"></div>
+    <div class="scratch-sidebar-col">
+      <div class="quick-add-box">
+        <div class="quick-add-label">➕ Quick Add — today, ☕ before noon / 🛋️ after</div>
+        <div class="add-goal-row">
+          <input class="add-goal-input" id="quickAddInput" placeholder="Add a goal for today…" onkeydown="quickAddKeydown(event)"/>
+          <button class="add-goal-btn" onclick="quickAddGoal()">Add</button>
+        </div>
+      </div>
+      <div class="scratch-sidebar" id="scratchSidebar"></div>
+    </div>
     <div id="board" class="board-content"></div>
   </div>
 </main>
@@ -1369,6 +1386,36 @@ window.addGoalFromMatrix = async function() {
 };
 window.matrixAddGoalKeydown = function(e) {
   if (e.key === 'Enter') { e.preventDefault(); addGoalFromMatrix(); }
+};
+
+// Quick Add box above the Scratchboard — visible on every view, always
+// targets today (or the next weekday if today's a weekend) and picks the
+// slot from the current wall-clock time: before noon goes to Morning,
+// noon or later goes to Afternoon.
+window.quickAddKeydown = function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); quickAddGoal(); }
+};
+window.quickAddGoal = async function() {
+  const input = document.getElementById('quickAddInput');
+  const text = (input.value || '').trim();
+  if (!text) return;
+  input.value = '';
+  input.focus();
+  const date = isWeekend(todayStr()) ? nextWeekday(todayStr()) : todayStr();
+  const slot = new Date().getHours() < 12 ? 'morning' : 'afternoon';
+  await addDoc(collection(db, 'goals'), {
+    text, date, slot,
+    uid: currentUser.uid,
+    teamId: currentTeamId,
+    visibility: scopeFilter === 'mine' ? 'private' : 'public',
+    completed: false,
+    effort: null,
+    reward: null,
+    createdAt: serverTimestamp(),
+    createdAtMs: Date.now(),
+    order: Date.now()
+  });
+  showToast(`Added to ${slot === 'morning' ? '☕ Morning' : '🛋️ Afternoon'} · today`);
 };
 
 window.toggleGoal = async function(id) {
