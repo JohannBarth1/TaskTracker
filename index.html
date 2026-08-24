@@ -62,12 +62,19 @@ body {
 .btn-google svg { width: 20px; height: 20px; }
 
 /* ── HEADER ── */
+/* One sticky wrapper for header + team-bar + toolbar + presence-bar.
+   Only this element needs position:sticky — everything inside it just
+   stacks in normal document flow, so it's immune to height changes
+   (e.g. the toolbar wrapping onto two lines on a narrow screen) that
+   previously broke the old per-bar `top: calc(...)` offsets. */
+.app-topbar { position: sticky; top: 0; z-index: 40; }
+
 header {
   background: var(--ink); color: var(--cream);
   height: var(--header-h); padding: 0 1rem;
   display: flex; align-items: center; justify-content: space-between;
   border-bottom: 3px solid var(--gold);
-  flex-shrink: 0; position: sticky; top: 0; z-index: 40;
+  flex-shrink: 0;
   /* overflow must stay visible — the avatar dropdown is absolutely
      positioned and extends below the header's own box */
 }
@@ -110,7 +117,6 @@ header {
   background: var(--panel); border-bottom: 1px solid var(--border);
   min-height: var(--team-h); padding: .3rem 1rem;
   display: flex; align-items: center; gap: .7rem; flex-wrap: wrap;
-  position: sticky; top: var(--header-h); z-index: 27;
 }
 .team-switcher { position: relative; flex-shrink: 0; }
 .team-switch-btn {
@@ -163,7 +169,6 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   background: var(--panel); border-bottom: 1px solid var(--border);
   padding: 0 1rem; height: var(--toolbar-h);
   display: flex; align-items: center; gap: .6rem;
-  position: sticky; top: calc(var(--header-h) + var(--team-h)); z-index: 25;
   overflow-x: auto; overflow-y: hidden;
   scrollbar-width: none;
 }
@@ -214,7 +219,7 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   background: var(--warm-white); border-bottom: 1px solid var(--border);
   min-height: var(--presence-h);
   padding: .3rem 1rem; display: flex; align-items: center; gap: .5rem;
-  flex-wrap: wrap; position: sticky; top: calc(var(--header-h) + var(--team-h) + var(--toolbar-h)); z-index: 24;
+  flex-wrap: wrap;
 }
 .presence-label { font-size: .58rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 700; flex-shrink: 0; }
 .presence-list { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
@@ -422,7 +427,6 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   flex: 1; min-width: 220px; max-width: 300px; flex-shrink: 0;
   border: 1px solid var(--border); border-radius: 8px; background: var(--warm-white);
   padding: .7rem .8rem; display: flex; flex-direction: column; gap: .5rem;
-  position: sticky; top: calc(var(--presence-h) + 1rem);
 }
 .notes-hdr { display: flex; flex-direction: column; gap: .2rem; margin-bottom: .2rem; }
 .notes-title { font-family: 'Playfair Display', serif; font-size: .95rem; color: var(--brown); }
@@ -475,10 +479,12 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   /* The toolbar previously relied on horizontal scroll with a hidden
      scrollbar, which meant the view/board toggles could be scrolled
      off-screen with no visual cue that more controls existed. On
-     narrow screens it wraps onto multiple lines instead, and the bars
-     above it drop out of the sticky stack so their (variable) wrapped
-     height never overlaps the content below. */
-  .team-bar, .toolbar, .presence-bar { position: static; }
+     narrow screens it wraps onto multiple lines instead. This is now
+     safe with no special-casing needed: the whole header+team+toolbar+
+     presence stack lives in one sticky wrapper (.app-topbar), so a
+     taller wrapped toolbar just makes that wrapper taller — nothing
+     below it can ever be overlapped, and nothing above it needs to
+     stop being sticky. */
   .toolbar { flex-wrap: wrap; height: auto; padding: .5rem .75rem; row-gap: .4rem; }
   .toolbar-spacer { display: none; }
   .toggle-group { flex-wrap: wrap; }
@@ -486,7 +492,7 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   .matrix-axis-y { display: none; }
   .matrix-grid { grid-template-columns: 1fr; grid-template-rows: none; min-height: auto; }
   .matrix-page { flex-direction: column; }
-  .matrix-notes-panel { max-width: none; width: 100%; position: static; }
+  .matrix-notes-panel { max-width: none; width: 100%; }
 }
 
 @media (max-width: 600px) {
@@ -518,6 +524,8 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   <div class="loading-bar"><div class="loading-bar-inner"></div></div>
 </div>
 
+<!-- Everything below sticks together as one unit -->
+<div class="app-topbar">
 <!-- Header -->
 <header>
   <div class="brand">
@@ -586,6 +594,7 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   <span class="presence-label">In the app</span>
   <div class="presence-list" id="presenceList"></div>
 </div>
+</div><!-- /.app-topbar -->
 
 <main class="main"><div id="board"></div></main>
 
