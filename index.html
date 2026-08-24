@@ -335,7 +335,12 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .goal-check:hover { border-color: var(--success); }
 .goal-card.completed .goal-check { background: var(--success); border-color: var(--success); color: #fff; }
 .goal-body { flex: 1; min-width: 0; }
-.goal-text { font-size: .9rem; line-height: 1.4; word-break: break-word; }
+.goal-text { font-size: .9rem; line-height: 1.4; word-break: break-word; cursor: text; }
+.goal-text:hover { background: rgba(200,149,42,.12); border-radius: 3px; }
+.goal-text-input {
+  width: 100%; font-family: 'Lato', sans-serif; font-size: .9rem; line-height: 1.4;
+  padding: .1rem .3rem; border: 1px solid var(--gold); border-radius: 4px; background: var(--warm-white); outline: none;
+}
 .goal-card.completed .goal-text { text-decoration: line-through; color: var(--muted); }
 .goal-meta { display: flex; align-items: center; gap: .4rem; margin-top: .3rem; flex-wrap: wrap; }
 .goal-owner { display: flex; align-items: center; gap: .3rem; }
@@ -662,6 +667,7 @@ let scopeFilter   = 'team';   // 'team' (everyone's public goals) | 'mine' (just
 let currentTeamId = DEFAULT_TEAM_ID;
 let editingGoalId = null;     // id of the goal currently showing its inline edit panel
 let notesLines = [{ id: 'l0', text: '', converted: false }]; // Meeting Notes — one running notepad per user
+let inlineEditingTextId = null; // goal id whose text is being edited inline, directly on the tile
 let selectedQuadrant = null;  // {effort, reward} — click a Matrix quadrant to select it
 let quadComposeActive = false; // true once you've started typing a new goal into the selected quadrant
 let notesUnsub = null;
@@ -1421,8 +1427,8 @@ function renderTodayView(dateStr, wd) {
     </div>
     <div class="drag-hint">Drag a goal to reorder it, move it to a different slot, or drop it on another day in Week view. Click ✎ for owner, date, slot, or visibility.</div>
     ${pastNote}
-    ${slotSectionHTML(dateStr, 'morning', '🌅', 'Morning')}
-    ${slotSectionHTML(dateStr, 'afternoon', '🪑', 'Afternoon')}
+    ${slotSectionHTML(dateStr, 'morning', '☕', 'Morning')}
+    ${slotSectionHTML(dateStr, 'afternoon', '🛋️', 'Afternoon')}
   `;
 }
 
@@ -1459,6 +1465,42 @@ function slotSectionHTML(dateStr, slot, icon, label) {
   `;
 }
 
+// Editing the subject line right on the tile — no need to open the ✎
+// panel just to fix a typo. Click the text, type, Enter/blur saves,
+// Escape cancels without saving.
+function goalTextHTML(g) {
+  if (g.id === inlineEditingTextId) {
+    return `<input type="text" class="goal-text-input" id="text-edit-${g.id}" value="${esc(g.text)}"
+                   onclick="event.stopPropagation()"
+                   onkeydown="textEditKeydown(event,'${g.id}')" onblur="saveTextEdit('${g.id}')"/>`;
+  }
+  return `<div class="goal-text" onclick="event.stopPropagation(); startTextEdit('${g.id}')" title="Click to edit">${esc(g.text)}</div>`;
+}
+window.startTextEdit = function(id) {
+  inlineEditingTextId = id;
+  render();
+  setTimeout(() => {
+    const el = document.getElementById(`text-edit-${id}`);
+    if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+  }, 0);
+};
+window.saveTextEdit = async function(id) {
+  const el = document.getElementById(`text-edit-${id}`);
+  inlineEditingTextId = null;
+  if (!el) { render(); return; }
+  const text = el.value.trim();
+  const g = goals.find(x => x.id === id);
+  if (text && g && text !== g.text) {
+    await updateDoc(doc(db, 'goals', id), { text });
+  } else {
+    render(); // nothing changed (or emptied it, which we don't allow) — just redraw
+  }
+};
+window.textEditKeydown = function(e, id) {
+  if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+  else if (e.key === 'Escape') { e.preventDefault(); inlineEditingTextId = null; render(); }
+};
+
 function goalCardHTML(g) {
   const editing = g.id === editingGoalId;
   const isPrivate = g.visibility === 'private';
@@ -1472,7 +1514,7 @@ function goalCardHTML(g) {
          ondrop="onGoalCardDrop(event,'${g.id}')">
       <button class="goal-check" onclick="toggleGoal('${g.id}')">${g.completed ? '✓' : ''}</button>
       <div class="goal-body">
-        <div class="goal-text">${esc(g.text)}</div>
+        ${goalTextHTML(g)}
         <div class="goal-meta">
           <span class="goal-owner">${avatarHTML(g.uid)}<span class="owner-name">${esc(userName(g.uid))}</span></span>
           ${isMine && scopeFilter === 'team' ? `<span class="mine-badge">★ You</span>` : ''}
@@ -1536,13 +1578,14 @@ function goalEditFormHTML(g) {
       <div class="edit-row-split">
         <div class="split-col">
           <div class="split-label">Slot</div>
-          ${pillGroupHTML(`edit-slot-${g.id}`, [{value:'morning',label:'🌅',title:'Morning'},{value:'afternoon',label:'🪑',title:'Afternoon'}], g.slot || 'morning', false)}
+          ${pillGroupHTML(`edit-slot-${g.id}`, [{value:'morning',label:'☕',title:'Morning'},{value:'afternoon',label:'🛋️',title:'Afternoon'}], g.slot || 'morning', false)}
         </div>
         <div class="split-col">
           <div class="split-label">Visible</div>
           ${pillGroupHTML(`edit-vis-${g.id}`, [{value:'public',label:'🌐',title:'Public — whole team'},{value:'private',label:'🔒',title:'Private — just you'}], g.visibility === 'private' ? 'private' : 'public', false)}
         </div>
       </div>
+      ${currentView === 'matrix' ? `
       <div class="priority-box">
         <div class="priority-box-hdr">🎯 Priority <span style="text-transform:none;letter-spacing:0;font-weight:400">— tap again to clear</span></div>
         <div class="priority-box-row">
@@ -1554,6 +1597,7 @@ function goalEditFormHTML(g) {
           ${pillGroupHTML(`edit-reward-${g.id}`, [{value:'1',label:'🌱 Low',title:'Low reward'},{value:'2',label:'💎 High',title:'High reward'}], g.reward ? String(g.reward) : '', true)}
         </div>
       </div>
+      ` : `<div class="form-note" style="margin:0">🎯 Effort &amp; Reward can only be set from the Matrix view.</div>`}
       <div class="edit-row">
         <label>🙋 Owner</label>
         <select id="edit-owner-${g.id}">${ownerOptions}</select>
@@ -1581,17 +1625,18 @@ window.saveGoalEdit = async function(id) {
   const date       = document.getElementById(`edit-date-${id}`).value;
   const slot       = document.getElementById(`edit-slot-${id}`).value;
   const visibility = document.getElementById(`edit-vis-${id}`).value;
-  const effortRaw  = document.getElementById(`edit-effort-${id}`).value;
-  const rewardRaw  = document.getElementById(`edit-reward-${id}`).value;
   if (!date) { showToast('Pick a date'); return; }
   if (date < todayStr()) { showToast('Pick today or a future date — past days are locked'); return; }
   if (isWeekend(date)) { showToast('Pick a weekday — Mon to Fri only'); return; }
   if (!teamId) { showToast("You're not a member of any team"); return; }
-  await updateDoc(doc(db, 'goals', id), {
-    uid, teamId, date, slot, visibility, rolled: false,
-    effort: effortRaw ? Number(effortRaw) : null,
-    reward: rewardRaw ? Number(rewardRaw) : null
-  });
+  const patch = { uid, teamId, date, slot, visibility, rolled: false };
+  // Effort/Reward only exist in this form within the Matrix view — everywhere
+  // else, priority is left untouched (matches those quadrant pills 1:1 anyway).
+  const effortEl = document.getElementById(`edit-effort-${id}`);
+  const rewardEl = document.getElementById(`edit-reward-${id}`);
+  if (effortEl) patch.effort = effortEl.value ? Number(effortEl.value) : null;
+  if (rewardEl) patch.reward = rewardEl.value ? Number(rewardEl.value) : null;
+  await updateDoc(doc(db, 'goals', id), patch);
   editingGoalId = null;
   showToast('Goal updated');
 };
@@ -1673,8 +1718,8 @@ function renderWeekView(wd) {
             ${d<today ? '<div class="day-col-locked">🔒 Locked</div>' : ''}
           </div>
           <div class="day-col-body">
-            ${weekSlotHTML(d, 'morning', '🌅')}
-            ${weekSlotHTML(d, 'afternoon', '🪑')}
+            ${weekSlotHTML(d, 'morning', '☕')}
+            ${weekSlotHTML(d, 'afternoon', '🛋️')}
           </div>
         </div>
       `).join('')}
@@ -1871,7 +1916,7 @@ function matrixGoalHTML(g, effort, reward) {
          ondrop="onMatrixCardDrop(event,${effort===null?'null':effort},${reward===null?'null':reward})">
       <button class="goal-check" onclick="toggleGoal('${g.id}')">${g.completed ? '✓' : ''}</button>
       <div class="goal-body">
-        <div class="goal-text">${esc(g.text)}</div>
+        ${goalTextHTML(g)}
         <div class="goal-meta">
           <span class="goal-owner">${avatarHTML(g.uid)}<span class="owner-name">${esc(userName(g.uid))}</span></span>
           ${isPrivate ? `<span class="private-badge">🔒 private</span>` : ''}
