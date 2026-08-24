@@ -1383,30 +1383,51 @@ window.deleteNoteLine = function(boardId, lineId) {
   scheduleNotesSave();
 };
 
-// Copy a board's contents as a plain "Title" + "• line" bulleted list —
-// handy for pasting into an email, chat message, or another doc.
-function boardToClipboardText(board) {
+// Copy a board's contents as a title + bulleted list. We write both a
+// text/html version (real <ul><li> markup, so pasting into Gmail, Docs,
+// Word, Slack, Notion etc. produces an actual bulleted list) and a
+// text/plain fallback (title + "• line", for plain-text targets like a
+// terminal or a bare <textarea>) in the same clipboard write — the target
+// app picks whichever format it understands.
+function boardToClipboardParts(board) {
   const title = (board.title || '').trim() || 'Untitled Board';
   const lines = (board.lines || []).map(l => (l.text || '').trim()).filter(Boolean);
-  if (!lines.length) return title;
-  return `${title}\n${lines.map(t => `• ${t}`).join('\n')}`;
+  const plain = lines.length ? `${title}\n${lines.map(t => `• ${t}`).join('\n')}` : title;
+  const html = `<div><strong>${esc(title)}</strong>${lines.length ? `<ul>${lines.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}</div>`;
+  return { plain, html };
 }
-async function copyTextToClipboard(text) {
-  try { await navigator.clipboard.writeText(text); return true; }
-  catch (e) { console.error('clipboard copy failed', e); return false; }
+async function copyBoardPartsToClipboard(board) {
+  const { plain, html } = boardToClipboardParts(board);
+  try {
+    if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/plain': new Blob([plain], { type: 'text/plain' }),
+          'text/html': new Blob([html], { type: 'text/html' })
+        })
+      ]);
+      return true;
+    }
+    await navigator.clipboard.writeText(plain);
+    return true;
+  } catch (e) {
+    console.error('rich clipboard copy failed, falling back to plain text', e);
+    try { await navigator.clipboard.writeText(plain); return true; }
+    catch (e2) { console.error('clipboard copy failed', e2); return false; }
+  }
 }
 window.copyBoardToClipboard = async function(boardId) {
   const b = findBoard(boardId);
   if (!b) return;
-  const ok = await copyTextToClipboard(boardToClipboardText(b));
-  showToast(ok ? 'Copied to clipboard' : "Couldn't copy — try again");
+  const ok = await copyBoardPartsToClipboard(b);
+  showToast(ok ? 'Copied to clipboard — pastes as a real bulleted list' : "Couldn't copy — try again");
 };
 window.copySharedBoardToClipboard = async function(ownerUid, boardId) {
   const entry = publicBoardsCache[ownerUid];
   const b = entry && (entry.boards || []).find(x => x.id === boardId);
   if (!b) return;
-  const ok = await copyTextToClipboard(boardToClipboardText(b));
-  showToast(ok ? 'Copied to clipboard' : "Couldn't copy — try again");
+  const ok = await copyBoardPartsToClipboard(b);
+  showToast(ok ? 'Copied to clipboard — pastes as a real bulleted list' : "Couldn't copy — try again");
 };
 
 window.reactivateNoteLine = function(boardId, lineId) {
