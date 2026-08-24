@@ -116,7 +116,12 @@ header {
 .team-bar {
   background: var(--panel); border-bottom: 1px solid var(--border);
   min-height: var(--team-h); padding: .3rem 1rem;
-  display: flex; align-items: center; gap: .7rem; flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .4rem .7rem; flex-wrap: wrap;
+}
+.team-info-group {
+  display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+  min-width: 0; flex: 1 1 auto;
 }
 .team-switcher { position: relative; flex-shrink: 0; }
 .team-switch-btn {
@@ -127,13 +132,29 @@ header {
 }
 .team-switch-btn:hover { background: var(--light-brown); }
 .team-chevron { font-size: .6rem; color: var(--muted); }
-.team-desc { font-size: .68rem; color: var(--muted); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.team-desc { font-size: .68rem; color: var(--muted); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; flex-shrink: 1; min-width: 0; }
 .team-members-strip { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
 .member-more { font-size: .58rem; color: var(--muted); font-weight: 700; background: var(--light-brown); border-radius: 8px; padding: 1px 5px; }
 
+/* ── PRESENCE (now grouped into the team bar) ── */
+.presence-group {
+  display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+  flex-shrink: 0; padding-left: .6rem; border-left: 1px solid var(--border);
+}
+.presence-label { font-size: .58rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 700; flex-shrink: 0; }
+.presence-list { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.presence-chip { display: flex; align-items: center; gap: .3rem; }
+.presence-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); flex-shrink: 0; box-shadow: 0 0 0 2px var(--success-pale); }
+.presence-name { font-size: .68rem; color: var(--brown); font-weight: 700; }
+.presence-empty { font-size: .68rem; color: var(--muted); font-style: italic; }
+
+@media (max-width: 760px) {
+  .presence-group { border-left: none; padding-left: 0; }
+}
+
 /* ── PERSONAL BOARD MODE ── */
 body.scope-mine { background: #f1e6d4; }
-body.scope-mine .presence-bar, body.scope-mine .toolbar { background: #ece0cb; }
+body.scope-mine .team-bar, body.scope-mine .toolbar { background: #ece0cb; }
 .scope-banner {
   background: var(--brown); color: var(--light-brown); text-align: center;
   font-family: 'Playfair Display', serif; font-style: italic; font-size: .88rem;
@@ -213,20 +234,6 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   padding: 4px 10px; cursor: pointer; flex-shrink: 0; transition: all .15s;
 }
 .today-jump:hover { background: var(--rust); color: #fff; }
-
-/* ── PRESENCE ── */
-.presence-bar {
-  background: var(--warm-white); border-bottom: 1px solid var(--border);
-  min-height: var(--presence-h);
-  padding: .3rem 1rem; display: flex; align-items: center; gap: .5rem;
-  flex-wrap: wrap;
-}
-.presence-label { font-size: .58rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 700; flex-shrink: 0; }
-.presence-list { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
-.presence-chip { display: flex; align-items: center; gap: .3rem; }
-.presence-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); flex-shrink: 0; box-shadow: 0 0 0 2px var(--success-pale); }
-.presence-name { font-size: .68rem; color: var(--brown); font-weight: 700; }
-.presence-empty { font-size: .68rem; color: var(--muted); font-style: italic; }
 
 /* ── DAY PICKER (Today view) ── */
 .day-picker { display: flex; justify-content: center; gap: .35rem; flex-wrap: wrap; margin-bottom: 1rem; }
@@ -476,7 +483,12 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .board-add-line { align-self: flex-start; }
 
 .notes-lines { display: flex; flex-direction: column; gap: .4rem; }
-.note-line { display: flex; align-items: flex-start; gap: .3rem; }
+.note-line { display: flex; align-items: flex-start; gap: .3rem; transition: opacity .15s; }
+.note-line.dragging { opacity: .35; }
+.note-drag-handle { cursor: grab; color: var(--muted); font-size: .85rem; padding: .35rem .1rem 0 0; flex-shrink: 0; user-select: none; }
+.note-drag-handle:hover { color: var(--gold); }
+.scratch-board { transition: outline .12s, background .12s; }
+.scratch-board.drag-over { outline: 2px dashed var(--gold); outline-offset: 2px; }
 .note-line textarea {
   flex: 1; min-width: 0; padding: .45rem .7rem; border: 1px solid var(--border); border-radius: 14px;
   font-family: 'Lato', sans-serif; font-size: .84rem; line-height: 1.4; background: var(--cream); outline: none;
@@ -592,21 +604,27 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 
 <!-- Team bar -->
 <div class="team-bar">
-  <div class="team-switcher">
-    <button class="team-switch-btn" onclick="toggleTeamMenu()">
-      <span id="teamNameLabel">Loading…</span><span class="team-chevron">▾</span>
-    </button>
-    <div class="team-menu" id="teamMenu">
-      <div class="team-menu-label">Your Teams</div>
-      <div class="team-menu-list" id="teamMenuList"></div>
-      <div class="team-menu-divider"></div>
-      <button class="team-menu-item" onclick="openCreateTeamModal()">＋ New Team</button>
-      <button class="team-menu-item" onclick="openJoinTeamModal()">🔗 Join a Team</button>
-      <button class="team-menu-item" onclick="openTeamSettingsModal()">⚙ Board Settings</button>
+  <div class="team-info-group">
+    <div class="team-switcher">
+      <button class="team-switch-btn" onclick="toggleTeamMenu()">
+        <span id="teamNameLabel">Loading…</span><span class="team-chevron">▾</span>
+      </button>
+      <div class="team-menu" id="teamMenu">
+        <div class="team-menu-label">Your Teams</div>
+        <div class="team-menu-list" id="teamMenuList"></div>
+        <div class="team-menu-divider"></div>
+        <button class="team-menu-item" onclick="openCreateTeamModal()">＋ New Team</button>
+        <button class="team-menu-item" onclick="openJoinTeamModal()">🔗 Join a Team</button>
+        <button class="team-menu-item" onclick="openTeamSettingsModal()">⚙ Board Settings</button>
+      </div>
     </div>
+    <div class="team-members-strip" id="teamMembersStrip"></div>
+    <div class="team-desc" id="teamDescLabel"></div>
   </div>
-  <div class="team-desc" id="teamDescLabel"></div>
-  <div class="team-members-strip" id="teamMembersStrip"></div>
+  <div class="presence-group">
+    <span class="presence-label">In the app</span>
+    <div class="presence-list" id="presenceList"></div>
+  </div>
 </div>
 
 <!-- Toolbar -->
@@ -634,11 +652,6 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   </div>
 </div>
 
-<!-- Presence -->
-<div class="presence-bar">
-  <span class="presence-label">In the app</span>
-  <div class="presence-list" id="presenceList"></div>
-</div>
 </div><!-- /.app-topbar -->
 
 <main class="main">
@@ -1244,30 +1257,87 @@ window.deleteNoteLine = function(boardId, lineId) {
   scheduleNotesSave();
 };
 
-// The "nifty" bit: turn a note line straight into a goal without leaving
-// the Matrix. The goal's subject line combines the meeting's name with
-// the line itself, so you can tell at a glance which meeting it came
-// from. Lands unrated (in the Needs Rating tray) so it still goes through
-// the normal drag-to-prioritize flow. The line stays in the notes, marked
-// done, as a record of what was actually discussed.
-window.convertNoteLineToGoal = async function(boardId, lineId) {
+window.reactivateNoteLine = function(boardId, lineId) {
   const m = findBoard(boardId);
   const line = m && m.lines.find(l => l.id === lineId);
-  if (!line || !line.text.trim()) { showToast('Nothing to convert'); return; }
+  if (!line) return;
+  line.converted = false;
+  scheduleNotesSave();
+  render();
+};
+
+// The "nifty" bit: turn a note line straight into a goal — either via the
+// ➕ button (lands unrated, today) or by dragging the line's handle onto
+// any goal slot / quadrant anywhere in the app (lands exactly there
+// instead). The goal's subject combines the board's name with the line
+// itself. The line stays in the notes, marked done as a record of what
+// was actually captured — untick it to bring it back if you want to
+// convert it again.
+async function createGoalFromNoteLine(boardId, lineId, extra) {
+  const m = findBoard(boardId);
+  const line = m && m.lines.find(l => l.id === lineId);
+  if (!line || !line.text.trim()) { showToast('Nothing to convert'); return false; }
   const title = (m.title || 'Notes').trim() || 'Notes';
   const text = `${title}: ${line.text.trim()}`;
-  const date = isWeekend(todayStr()) ? nextWeekday(todayStr()) : todayStr();
   await addDoc(collection(db, 'goals'), {
-    text, date, slot: 'morning',
+    text,
     uid: currentUser.uid, teamId: currentTeamId,
     visibility: 'private', completed: false,
     effort: null, reward: null,
-    createdAt: serverTimestamp(), createdAtMs: Date.now(), order: Date.now()
+    createdAt: serverTimestamp(), createdAtMs: Date.now(), order: Date.now(),
+    ...extra
   });
   line.converted = true;
   scheduleNotesSave();
   render();
-  showToast('Added as a goal — drag it into a quadrant when ready');
+  return true;
+}
+
+window.convertNoteLineToGoal = async function(boardId, lineId) {
+  const date = isWeekend(todayStr()) ? nextWeekday(todayStr()) : todayStr();
+  const ok = await createGoalFromNoteLine(boardId, lineId, { date, slot: 'morning' });
+  if (ok) showToast('Added as a goal — drag it into a quadrant when ready');
+};
+
+// Dragging a note line's handle: carries "note:<boardId>:<lineId>" so drop
+// targets can tell it apart from dragging an existing goal (which carries
+// just the goal's id). Dropping it moves it to another board (see
+// onBoardDrop) or onto a goal slot / quadrant, which converts it in place.
+function parseNoteDrag(raw) {
+  if (!raw || !raw.startsWith('note:')) return null;
+  const [, boardId, lineId] = raw.split(':');
+  return { boardId, lineId };
+}
+window.onNoteLineDragStart = function(e, boardId, lineId) {
+  e.dataTransfer.setData('text/plain', `note:${boardId}:${lineId}`);
+  e.dataTransfer.effectAllowed = 'move';
+  const row = e.currentTarget.closest('.note-line');
+  if (row) row.classList.add('dragging');
+};
+window.onNoteLineDragEnd = function(e) {
+  const row = e.currentTarget.closest('.note-line');
+  if (row) row.classList.remove('dragging');
+};
+
+// Dropping a note line onto another board's line list moves it there.
+window.onBoardDragOver = function(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); };
+window.onBoardDragLeave = function(e) { e.currentTarget.classList.remove('drag-over'); };
+window.onBoardDrop = function(e, targetBoardId) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const drag = parseNoteDrag(e.dataTransfer.getData('text/plain'));
+  if (!drag || drag.boardId === targetBoardId) return;
+  const source = findBoard(drag.boardId);
+  const target = findBoard(targetBoardId);
+  if (!source || !target) return;
+  const idx = source.lines.findIndex(l => l.id === drag.lineId);
+  if (idx === -1) return;
+  const [line] = source.lines.splice(idx, 1);
+  if (!source.lines.length) source.lines.push({ id: genId('l'), text: '', converted: false });
+  target.lines.push(line);
+  render();
+  scheduleNotesSave();
+  showToast(`Moved to "${target.title || 'Untitled Board'}"`);
 };
 
 // ── GOALS ─────────────────────────────────────────────────
@@ -1778,8 +1848,15 @@ window.onSlotDrop = async function(e, dateStr, slot) {
   e.currentTarget.classList.remove('drag-over');
   e.currentTarget.classList.remove('drag-over-blocked');
   if (isPastDate(dateStr)) { showToast("Can't move goals to a past day"); return; }
-  const id = e.dataTransfer.getData('text/plain');
-  if (!id) return;
+  const raw = e.dataTransfer.getData('text/plain');
+  if (!raw) return;
+  const noteDrag = parseNoteDrag(raw);
+  if (noteDrag) {
+    const ok = await createGoalFromNoteLine(noteDrag.boardId, noteDrag.lineId, { date: dateStr, slot });
+    if (ok) showToast(`Added to ${fmtShort(dateStr)} · ${slot}`);
+    return;
+  }
+  const id = raw;
   const g = goals.find(x => x.id === id);
   if (!g || (g.date === dateStr && g.slot === slot)) return;
   const list = goalsFor(dateStr, slot);
@@ -1789,12 +1866,21 @@ window.onSlotDrop = async function(e, dateStr, slot) {
 window.onGoalCardDrop = async function(e, targetId) {
   e.preventDefault();
   e.stopPropagation();
-  const sourceId = e.dataTransfer.getData('text/plain');
-  if (!sourceId || sourceId === targetId) return;
+  const raw = e.dataTransfer.getData('text/plain');
+  if (!raw || raw === targetId) return;
   const target = goals.find(x => x.id === targetId);
-  const source = goals.find(x => x.id === sourceId);
-  if (!target || !source) return;
+  if (!target) return;
   if (isPastDate(target.date)) { showToast("Can't move goals to a past day"); return; }
+  const noteDrag = parseNoteDrag(raw);
+  if (noteDrag) {
+    const list = goalsFor(target.date, target.slot);
+    const ok = await createGoalFromNoteLine(noteDrag.boardId, noteDrag.lineId, { date: target.date, slot: target.slot, order: (list[list.length-1]?.order ?? 0) + 1 });
+    if (ok) showToast(`Added to ${fmtShort(target.date)} · ${target.slot}`);
+    return;
+  }
+  const sourceId = raw;
+  const source = goals.find(x => x.id === sourceId);
+  if (!source) return;
   const sameList = source.date === target.date && source.slot === target.slot;
   let list = goalsFor(target.date, target.slot).filter(x => x.id !== sourceId);
   const idx = list.findIndex(x => x.id === targetId);
@@ -1921,7 +2007,8 @@ function scratchSidebarHTML() {
 function scratchBoardHTML(m) {
   const color = m.color || '#c0571a';
   return `
-    <div class="scratch-board" style="border-left: 4px solid ${color}">
+    <div class="scratch-board" style="border-left: 4px solid ${color}"
+         ondragover="onBoardDragOver(event)" ondragleave="onBoardDragLeave(event)" ondrop="onBoardDrop(event,'${m.id}')">
       <div class="scratch-board-hdr">
         <input type="color" class="board-color-swatch" id="board-color-${m.id}" value="${color}"
                title="Change this board's color" onchange="onBoardColorInput('${m.id}', this.value)"/>
@@ -1940,10 +2027,13 @@ function scratchBoardHTML(m) {
 function noteLineHTML(boardId, l) {
   return `
     <div class="note-line ${l.converted ? 'converted' : ''}">
+      <span class="note-drag-handle" draggable="true"
+            ondragstart="onNoteLineDragStart(event,'${boardId}','${l.id}')" ondragend="onNoteLineDragEnd(event)"
+            title="Drag onto another board, or onto a goal slot / quadrant to convert it there">⠿</span>
       <textarea id="note-${l.id}" rows="1" placeholder="Type a note… (Shift+Enter for a new line within it)"
                 oninput="autoGrowNoteLine(this); onNoteLineInput('${boardId}','${l.id}', this.value)"
                 onkeydown="onNoteLineKeydown(event,'${boardId}','${l.id}')">${esc(l.text)}</textarea>
-      <button class="note-convert-btn" ${l.converted ? 'disabled' : ''} onclick="convertNoteLineToGoal('${boardId}','${l.id}')" title="${l.converted ? 'Already added as a goal' : 'Turn into a goal'}">${l.converted ? '✓' : '➕'}</button>
+      <button class="note-convert-btn" onclick="${l.converted ? `reactivateNoteLine('${boardId}','${l.id}')` : `convertNoteLineToGoal('${boardId}','${l.id}')`}" title="${l.converted ? 'Untick — bring it back as not-yet-converted' : 'Turn into a goal'}">${l.converted ? '✓' : '➕'}</button>
       <button class="note-del-btn" onclick="deleteNoteLine('${boardId}','${l.id}')" title="Delete line">✕</button>
     </div>
   `;
@@ -2050,12 +2140,20 @@ function matrixGoalHTML(g, effort, reward) {
   `;
 }
 
+function matrixDropDate() { return isWeekend(todayStr()) ? nextWeekday(todayStr()) : todayStr(); }
+
 window.onMatrixCardDrop = async function(e, effort, reward) {
   e.preventDefault();
   e.stopPropagation();
-  const id = e.dataTransfer.getData('text/plain');
-  if (!id) return;
-  await updateDoc(doc(db, 'goals', id), { effort, reward });
+  const raw = e.dataTransfer.getData('text/plain');
+  if (!raw) return;
+  const noteDrag = parseNoteDrag(raw);
+  if (noteDrag) {
+    const ok = await createGoalFromNoteLine(noteDrag.boardId, noteDrag.lineId, { date: matrixDropDate(), slot: 'morning', effort, reward });
+    if (ok) showToast(effort === null ? 'Added to Needs Rating' : 'Added with priority set');
+    return;
+  }
+  await updateDoc(doc(db, 'goals', raw), { effort, reward });
   showToast(effort === null ? 'Moved back to unrated' : 'Priority updated');
 };
 
@@ -2064,17 +2162,29 @@ window.onMatrixDragLeave = function(e) { e.currentTarget.classList.remove('drag-
 window.onMatrixDrop = async function(e, effort, reward) {
   e.preventDefault();
   e.currentTarget.classList.remove('drag-over');
-  const id = e.dataTransfer.getData('text/plain');
-  if (!id) return;
-  await updateDoc(doc(db, 'goals', id), { effort, reward });
+  const raw = e.dataTransfer.getData('text/plain');
+  if (!raw) return;
+  const noteDrag = parseNoteDrag(raw);
+  if (noteDrag) {
+    const ok = await createGoalFromNoteLine(noteDrag.boardId, noteDrag.lineId, { date: matrixDropDate(), slot: 'morning', effort, reward });
+    if (ok) showToast('Added with priority set');
+    return;
+  }
+  await updateDoc(doc(db, 'goals', raw), { effort, reward });
   showToast('Priority updated');
 };
 window.onMatrixTrayDrop = async function(e) {
   e.preventDefault();
   e.currentTarget.classList.remove('drag-over');
-  const id = e.dataTransfer.getData('text/plain');
-  if (!id) return;
-  await updateDoc(doc(db, 'goals', id), { effort: null, reward: null });
+  const raw = e.dataTransfer.getData('text/plain');
+  if (!raw) return;
+  const noteDrag = parseNoteDrag(raw);
+  if (noteDrag) {
+    const ok = await createGoalFromNoteLine(noteDrag.boardId, noteDrag.lineId, { date: matrixDropDate(), slot: 'morning', effort: null, reward: null });
+    if (ok) showToast('Added to Needs Rating');
+    return;
+  }
+  await updateDoc(doc(db, 'goals', raw), { effort: null, reward: null });
   showToast('Moved back to unrated');
 };
 
