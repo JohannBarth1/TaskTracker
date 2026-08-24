@@ -414,6 +414,36 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .matrix-goal-text { font-size: .78rem; line-height: 1.35; word-break: break-word; }
 .matrix-goal-meta { font-size: .6rem; color: var(--muted); margin-top: 3px; display: flex; gap: .35rem; flex-wrap: wrap; align-items: center; }
 
+.matrix-page { display: flex; gap: 1rem; align-items: flex-start; }
+.matrix-left { flex: 2; min-width: 0; }
+
+/* ── MEETING NOTES ── */
+.matrix-notes-panel {
+  flex: 1; min-width: 220px; max-width: 300px; flex-shrink: 0;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--warm-white);
+  padding: .7rem .8rem; display: flex; flex-direction: column; gap: .5rem;
+  position: sticky; top: calc(var(--presence-h) + 1rem);
+}
+.notes-hdr { display: flex; flex-direction: column; gap: .2rem; margin-bottom: .2rem; }
+.notes-title { font-family: 'Playfair Display', serif; font-size: .95rem; color: var(--brown); }
+.notes-sub { font-size: .64rem; color: var(--muted); line-height: 1.4; }
+.notes-lines { display: flex; flex-direction: column; gap: .3rem; }
+.note-line { display: flex; align-items: center; gap: .3rem; }
+.note-line input {
+  flex: 1; min-width: 0; padding: .32rem .6rem; border: 1px solid var(--border); border-radius: 999px;
+  font-family: 'Lato', sans-serif; font-size: .78rem; background: var(--cream); outline: none; transition: border-color .15s;
+}
+.note-line input:focus { border-color: var(--gold); background: var(--warm-white); }
+.note-line.converted input { color: var(--muted); text-decoration: line-through; background: var(--success-pale); }
+.note-convert-btn, .note-del-btn {
+  background: none; border: 1px solid var(--border); border-radius: 999px; cursor: pointer;
+  font-size: .68rem; width: 24px; height: 24px; flex-shrink: 0; color: var(--muted); transition: all .15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.note-convert-btn:hover { border-color: var(--gold); color: var(--gold); }
+.note-convert-btn:disabled { color: var(--success); border-color: var(--success); cursor: default; opacity: .8; }
+.note-del-btn:hover { border-color: var(--danger); color: var(--danger); }
+
 /* ── MODAL ── */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(26,18,8,.55); z-index: 300; align-items: center; justify-content: center; padding: 1rem; }
 .modal-overlay.open { display: flex; }
@@ -455,6 +485,8 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   .matrix-wrap { flex-direction: column; }
   .matrix-axis-y { display: none; }
   .matrix-grid { grid-template-columns: 1fr; grid-template-rows: none; min-height: auto; }
+  .matrix-page { flex-direction: column; }
+  .matrix-notes-panel { max-width: none; width: 100%; position: static; }
 }
 
 @media (max-width: 600px) {
@@ -606,6 +638,9 @@ let currentView   = 'today';  // 'today' | 'week'
 let scopeFilter   = 'team';   // 'team' (everyone's public goals) | 'mine' (just current user)
 let currentTeamId = DEFAULT_TEAM_ID;
 let editingGoalId = null;     // id of the goal currently showing its inline edit panel
+let notesLines = [{ id: 'l0', text: '', converted: false }]; // Meeting Notes — one running notepad per user
+let notesUnsub = null;
+let notesSaveTimer = null;
 let weekOffset    = 0;        // 0 = this week, -1 = last week, +1 = next week
 let selectedDate  = null;     // used in today view; snaps to nearest weekday, set after helpers are defined
 
@@ -647,6 +682,7 @@ window.signOutUser = async () => {
   if (goalsUnsub) { goalsUnsub(); goalsUnsub = null; }
   if (usersUnsub) { usersUnsub(); usersUnsub = null; }
   if (teamsUnsub) { teamsUnsub(); teamsUnsub = null; }
+  if (notesUnsub) { notesUnsub(); notesUnsub = null; }
   stopHeartbeat();
   await fbSignOut(auth);
 };
@@ -679,6 +715,7 @@ onAuthStateChanged(auth, async user => {
     subscribeToUsers();
     subscribeToTeams();
     subscribeToGoals();
+    subscribeToNotes();
     setSyncState('loading');
     startHeartbeat();
   } else {
@@ -996,6 +1033,102 @@ window.openTeamSettingsModal = function() {
     showToast('Board updated');
   });
   refreshPendingInvitesList(currentTeamId);
+};
+
+// ── MEETING NOTES ─────────────────────────────────────────
+// One running notepad per user (not per team — this is personal scratch
+// space, same spirit as My Board). Stored as an ordered array of lines
+// so each line can carry its own "converted to a goal" state. Edits save
+// with a short debounce rather than on every keystroke.
+function genLineId() { return 'l' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+function subscribeToNotes() {
+  if (notesUnsub) notesUnsub();
+  notesUnsub = onSnapshot(doc(db, 'notes', currentUser.uid), snap => {
+    const data = snap.exists() ? snap.data() : null;
+    if (data && Array.isArray(data.lines) && data.lines.length) {
+      notesLines = data.lines;
+    } else if (!notesLines.length) {
+      notesLines = [{ id: genLineId(), text: '', converted: false }];
+    }
+    if (currentView === 'matrix') render();
+  }, err => console.error('notes subscription failed (check Firestore rules for /notes):', err));
+}
+
+function scheduleNotesSave() {
+  clearTimeout(notesSaveTimer);
+  notesSaveTimer = setTimeout(async () => {
+    try {
+      await setDoc(doc(db, 'notes', currentUser.uid), { lines: notesLines, updatedAt: serverTimestamp() }, { merge: true });
+    } catch (e) { console.error('notes save failed', e); }
+  }, 500);
+}
+
+window.onNoteLineInput = function(id, value) {
+  const line = notesLines.find(l => l.id === id);
+  if (line) { line.text = value; scheduleNotesSave(); }
+};
+
+window.onNoteLineKeydown = function(e, id) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const idx = notesLines.findIndex(l => l.id === id);
+    const newLine = { id: genLineId(), text: '', converted: false };
+    notesLines.splice(idx + 1, 0, newLine);
+    render();
+    scheduleNotesSave();
+    setTimeout(() => { const el = document.getElementById(`note-${newLine.id}`); if (el) el.focus(); }, 0);
+  } else if (e.key === 'Backspace' && e.target.value === '' && notesLines.length > 1) {
+    e.preventDefault();
+    const idx = notesLines.findIndex(l => l.id === id);
+    const focusLine = notesLines[Math.max(0, idx - 1)];
+    notesLines.splice(idx, 1);
+    render();
+    scheduleNotesSave();
+    setTimeout(() => {
+      const el = document.getElementById(`note-${focusLine.id}`);
+      if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    }, 0);
+  }
+};
+
+window.addNoteLine = function() {
+  const newLine = { id: genLineId(), text: '', converted: false };
+  notesLines.push(newLine);
+  render();
+  scheduleNotesSave();
+  setTimeout(() => { const el = document.getElementById(`note-${newLine.id}`); if (el) el.focus(); }, 0);
+};
+
+window.deleteNoteLine = function(id) {
+  if (notesLines.length <= 1) {
+    notesLines[0].text = ''; notesLines[0].converted = false;
+  } else {
+    notesLines = notesLines.filter(l => l.id !== id);
+  }
+  render();
+  scheduleNotesSave();
+};
+
+// The "nifty" bit: turn a note line straight into a goal without leaving
+// the Matrix. Lands unrated (in the Needs Rating tray) so it still goes
+// through the normal drag-to-prioritize flow. The line itself stays in
+// the notes, marked done, as a record of what was actually discussed.
+window.convertNoteLineToGoal = async function(id) {
+  const line = notesLines.find(l => l.id === id);
+  if (!line || !line.text.trim()) { showToast('Nothing to convert'); return; }
+  const date = isWeekend(todayStr()) ? nextWeekday(todayStr()) : todayStr();
+  await addDoc(collection(db, 'goals'), {
+    text: line.text.trim(), date, slot: 'morning',
+    uid: currentUser.uid, teamId: currentTeamId,
+    visibility: 'private', completed: false,
+    effort: null, reward: null,
+    createdAt: serverTimestamp(), createdAtMs: Date.now(), order: Date.now()
+  });
+  line.converted = true;
+  scheduleNotesSave();
+  render();
+  showToast('Added as a goal — drag it into a quadrant when ready');
 };
 
 // ── GOALS ─────────────────────────────────────────────────
@@ -1557,32 +1690,64 @@ function renderMatrixView() {
   const quad = (effort, reward) => mine.filter(g => g.effort === effort && g.reward === reward);
 
   return `
-    <div class="matrix-intro">Every future goal you own, across every team. Drag a card into a quadrant to set its priority.</div>
-    <div class="add-goal-row" style="margin-bottom:1rem">
-      <input class="add-goal-input" id="matrixNewGoalInput" placeholder="Add a goal — lands in Needs Rating, on today's date" onkeydown="matrixAddGoalKeydown(event)"/>
-      <button class="add-goal-btn" onclick="addGoalFromMatrix()">Add</button>
-    </div>
-    <div class="matrix-unrated">
-      <div class="matrix-unrated-hdr">
-        <span class="matrix-unrated-title">Needs Rating (${unrated.length})</span>
-        <div class="matrix-unrated-line"></div>
-      </div>
-      <div class="matrix-unrated-tray"
-           ondragover="onMatrixDragOver(event)" ondragleave="onMatrixDragLeave(event)" ondrop="onMatrixTrayDrop(event)">
-        ${unrated.length ? unrated.map(g => matrixGoalHTML(g, null, null)).join('') : `<div class="matrix-unrated-empty">Nothing waiting to be rated</div>`}
-      </div>
-    </div>
-    <div class="matrix-wrap">
-      <div class="matrix-axis-y"><span>High Reward</span><span>Low Reward</span></div>
-      <div class="matrix-main">
-        <div class="matrix-grid">
-          ${matrixQuadHTML('q-lo-hi', 'Showroom Wins', 'Low effort · High reward', quad(1,2))}
-          ${matrixQuadHTML('q-hi-hi', 'Signature Pieces', 'High effort · High reward', quad(2,2))}
-          ${matrixQuadHTML('q-lo-lo', 'Quick Tidy', 'Low effort · Low reward', quad(1,1))}
-          ${matrixQuadHTML('q-hi-lo', 'Back of the Warehouse', 'High effort · Low reward', quad(2,1))}
+    <div class="matrix-page">
+      <div class="matrix-left">
+        <div class="matrix-intro">Every future goal you own, across every team. Drag a card into a quadrant to set its priority.</div>
+        <div class="add-goal-row" style="margin-bottom:1rem">
+          <input class="add-goal-input" id="matrixNewGoalInput" placeholder="Add a goal — lands in Needs Rating, on today's date" onkeydown="matrixAddGoalKeydown(event)"/>
+          <button class="add-goal-btn" onclick="addGoalFromMatrix()">Add</button>
         </div>
-        <div class="matrix-axis-x"><span>Low Effort</span><span>High Effort</span></div>
+        <div class="matrix-unrated">
+          <div class="matrix-unrated-hdr">
+            <span class="matrix-unrated-title">Needs Rating (${unrated.length})</span>
+            <div class="matrix-unrated-line"></div>
+          </div>
+          <div class="matrix-unrated-tray"
+               ondragover="onMatrixDragOver(event)" ondragleave="onMatrixDragLeave(event)" ondrop="onMatrixTrayDrop(event)">
+            ${unrated.length ? unrated.map(g => matrixGoalHTML(g, null, null)).join('') : `<div class="matrix-unrated-empty">Nothing waiting to be rated</div>`}
+          </div>
+        </div>
+        <div class="matrix-wrap">
+          <div class="matrix-axis-y"><span>High Reward</span><span>Low Reward</span></div>
+          <div class="matrix-main">
+            <div class="matrix-grid">
+              ${matrixQuadHTML('q-lo-hi', 'Showroom Wins', 'Low effort · High reward', quad(1,2))}
+              ${matrixQuadHTML('q-hi-hi', 'Signature Pieces', 'High effort · High reward', quad(2,2))}
+              ${matrixQuadHTML('q-lo-lo', 'Quick Tidy', 'Low effort · Low reward', quad(1,1))}
+              ${matrixQuadHTML('q-hi-lo', 'Back of the Warehouse', 'High effort · Low reward', quad(2,1))}
+            </div>
+            <div class="matrix-axis-x"><span>Low Effort</span><span>High Effort</span></div>
+          </div>
+        </div>
       </div>
+      ${meetingNotesPanelHTML()}
+    </div>
+  `;
+}
+
+function meetingNotesPanelHTML() {
+  return `
+    <div class="matrix-notes-panel">
+      <div class="notes-hdr">
+        <span class="notes-title">📝 Meeting Notes</span>
+        <span class="notes-sub">Jot anything ahead of or during a meeting. Click ➕ on any line to turn it into a goal.</span>
+      </div>
+      <div class="notes-lines">
+        ${notesLines.map(noteLineHTML).join('')}
+      </div>
+      <button class="gact" onclick="addNoteLine()">＋ Add line</button>
+    </div>
+  `;
+}
+
+function noteLineHTML(l) {
+  return `
+    <div class="note-line ${l.converted ? 'converted' : ''}">
+      <input type="text" id="note-${l.id}" value="${esc(l.text)}" placeholder="Type a note…"
+             oninput="onNoteLineInput('${l.id}', this.value)"
+             onkeydown="onNoteLineKeydown(event,'${l.id}')"/>
+      <button class="note-convert-btn" ${l.converted ? 'disabled' : ''} onclick="convertNoteLineToGoal('${l.id}')" title="${l.converted ? 'Already added as a goal' : 'Turn into a goal'}">${l.converted ? '✓' : '➕'}</button>
+      <button class="note-del-btn" onclick="deleteNoteLine('${l.id}')" title="Delete line">✕</button>
     </div>
   `;
 }
@@ -1662,7 +1827,7 @@ window.onMatrixTrayDrop = async function(e) {
 };
 
 // ── UTIL ──────────────────────────────────────────────────
-function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function setSyncState(state) { document.getElementById('syncDot').className = `sync-dot ${state}`; }
 function hideLoading(){ const ls=document.getElementById('loadingScreen'); ls.classList.add('hidden'); setTimeout(()=>ls.style.display='none',420); }
 window.showToast = msg => {
