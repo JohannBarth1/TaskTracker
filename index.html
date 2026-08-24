@@ -471,6 +471,17 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .board-color-swatch::-webkit-color-swatch-wrapper { padding: 0; border-radius: 50%; }
 .board-color-swatch::-webkit-color-swatch { border: none; border-radius: 50%; }
 .board-color-swatch::-moz-color-swatch { border: none; border-radius: 50%; }
+.board-visibility-btn {
+  width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--warm-white); cursor: pointer; flex-shrink: 0; font-size: .78rem;
+  display: flex; align-items: center; justify-content: center; padding: 0; transition: background .15s;
+}
+.board-visibility-btn.public { background: var(--success-pale); border-color: var(--success); }
+.shared-board { opacity: .92; }
+.shared-board-title { display: flex; align-items: center; font-family: 'Playfair Display', serif; font-style: italic; font-size: .9rem; color: var(--brown); padding: .3rem .1rem; flex: 1; min-width: 0; }
+.shared-board-owner { font-size: .62rem; color: var(--muted); font-style: italic; margin-top: -.3rem; }
+.note-line.shared { padding: .1rem 0; }
+.shared-line-text { font-size: .78rem; line-height: 1.35; color: var(--brown); }
 .notes-hdr { display: flex; flex-direction: column; gap: .2rem; margin-bottom: .2rem; }
 .notes-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--brown); }
 .notes-sub { font-size: .68rem; color: var(--muted); line-height: 1.4; }
@@ -693,7 +704,7 @@ import { initializeApp }   from "https://www.gstatic.com/firebasejs/11.8.0/fireb
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut }
                            from "https://www.gstatic.com/firebasejs/11.8.0/firebase-auth.js";
 import { getFirestore, collection, doc, getDoc, getDocs, onSnapshot, addDoc, updateDoc,
-         deleteDoc, setDoc, serverTimestamp, arrayUnion, query, where }
+         deleteDoc, setDoc, serverTimestamp, arrayUnion, arrayRemove, query, where }
                            from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -771,6 +782,7 @@ window.signOutUser = async () => {
   if (usersUnsub) { usersUnsub(); usersUnsub = null; }
   if (teamsUnsub) { teamsUnsub(); teamsUnsub = null; }
   if (notesUnsub) { notesUnsub(); notesUnsub = null; }
+  if (publicBoardsUnsub) { publicBoardsUnsub(); publicBoardsUnsub = null; }
   stopHeartbeat();
   await fbSignOut(auth);
 };
@@ -804,6 +816,7 @@ onAuthStateChanged(auth, async user => {
     subscribeToTeams();
     subscribeToGoals();
     subscribeToNotes();
+    subscribeToPublicBoards();
     setSyncState('loading');
     startHeartbeat();
   } else {
@@ -869,6 +882,16 @@ window.addMemberDirectly = async function(teamId) {
   if (!uid) { showToast('No user selected'); return; }
   await updateDoc(doc(db, 'teams', teamId), { memberUids: arrayUnion(uid) });
   showToast(`Added ${userName(uid)} to the team`);
+  openTeamSettingsModal(); // re-render the modal with the updated member list
+};
+
+window.removeMember = async function(teamId, uid) {
+  const t = teams[teamId];
+  if (!t || t.ownerUid !== (currentUser && currentUser.uid)) { showToast('Only the team owner can remove members'); return; }
+  if (uid === t.ownerUid) { showToast("Can't remove the owner"); return; }
+  if (!confirm(`Remove ${userName(uid)} from "${t.name}"?`)) return;
+  await updateDoc(doc(db, 'teams', teamId), { memberUids: arrayRemove(uid) });
+  showToast(`Removed ${userName(uid)}`);
   openTeamSettingsModal(); // re-render the modal with the updated member list
 };
 
@@ -1089,10 +1112,12 @@ window.openJoinTeamModal = function() {
 window.openTeamSettingsModal = function() {
   document.getElementById('teamMenu').classList.remove('open');
   const t = teams[currentTeamId] || { name: '', description: '', memberUids: [] };
+  const isAdmin = currentUser && t.ownerUid === currentUser.uid;
   const membersHTML = (t.memberUids || []).map(uid => `
     <div style="display:flex;align-items:center;gap:.45rem;padding:.2rem 0">
-      ${avatarHTML(uid)}<span style="font-size:.8rem">${esc(userName(uid))}</span>
-      ${uid === t.ownerUid ? '<span style="font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">owner</span>' : ''}
+      ${avatarHTML(uid)}<span style="font-size:.8rem;flex:1;min-width:0">${esc(userName(uid))}</span>
+      ${uid === t.ownerUid ? '<span style="font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">owner</span>' :
+        (isAdmin ? `<button class="note-del-btn" onclick="removeMember('${currentTeamId}','${uid}')" title="Remove from team">✕</button>` : '')}
     </div>
   `).join('') || '<div style="font-size:.72rem;color:var(--muted)">No members</div>';
 
@@ -1142,7 +1167,7 @@ function genId(prefix) { return prefix + Date.now().toString(36) + Math.random()
 const BOARD_COLORS = ['#c0571a', '#2a7a4a', '#3d6b8a', '#8a4a8a', '#b08a2a', '#4a6b3d', '#a0334f', '#5a4a8a'];
 function nextBoardColor() { return BOARD_COLORS[scratchBoards.length % BOARD_COLORS.length]; }
 
-function defaultBoard() { return { id: genId('m'), title: 'Untitled Board', color: nextBoardColor(), lines: [{ id: genId('l'), text: '', converted: false }] }; }
+function defaultBoard() { return { id: genId('m'), title: 'Untitled Board', color: nextBoardColor(), public: false, lines: [{ id: genId('l'), text: '', converted: false }] }; }
 
 function subscribeToNotes() {
   if (notesUnsub) notesUnsub();
@@ -1159,8 +1184,12 @@ function subscribeToNotes() {
     } else if (!scratchBoards.length) {
       scratchBoards = [defaultBoard()];
     }
-    // Backfill color for any board that predates this field.
-    scratchBoards.forEach((b, i) => { if (!b.color) b.color = BOARD_COLORS[i % BOARD_COLORS.length]; });
+    // Backfill color and visibility for any board that predates these fields.
+    // Public defaults to false no matter what — never silently expose old boards.
+    scratchBoards.forEach((b, i) => {
+      if (!b.color) b.color = BOARD_COLORS[i % BOARD_COLORS.length];
+      if (typeof b.public !== 'boolean') b.public = false;
+    });
     render();
   }, err => console.error('notes subscription failed (check Firestore rules for /notes):', err));
 }
@@ -1170,8 +1199,66 @@ function scheduleNotesSave() {
   notesSaveTimer = setTimeout(async () => {
     try {
       await setDoc(doc(db, 'notes', currentUser.uid), { boards: scratchBoards, updatedAt: serverTimestamp() }, { merge: true });
+      await syncPublicBoardsMirror();
     } catch (e) { console.error('notes save failed', e); }
   }, 500);
+}
+
+// Boards marked "public" get mirrored into a separate collection (one doc
+// per owner) so teammates can see them without opening up the private
+// /notes doc itself. Anyone sharing a team with you can read this doc;
+// it only ever contains the boards you've explicitly flagged public.
+async function syncPublicBoardsMirror() {
+  if (!currentUser) return;
+  const publicOnes = scratchBoards.filter(b => b.public);
+  const ref = doc(db, 'publicBoards', currentUser.uid);
+  try {
+    if (publicOnes.length) {
+      await setDoc(ref, {
+        ownerUid: currentUser.uid,
+        ownerName: currentUser.displayName || currentUser.email || 'Someone',
+        boards: publicOnes,
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      await deleteDoc(ref).catch(() => {});
+    }
+  } catch (e) { console.error('publicBoards mirror sync failed (check Firestore rules for /publicBoards):', e); }
+}
+
+window.toggleBoardVisibility = function(boardId) {
+  const b = findBoard(boardId);
+  if (!b) return;
+  b.public = !b.public;
+  render();
+  scheduleNotesSave();
+  showToast(b.public ? 'Board made public to your teammates' : 'Board made private');
+};
+
+// ── SHARED (PUBLIC) BOARDS FROM TEAMMATES ──────────────────
+// Anyone who shares at least one team with you and has flagged a board
+// public shows up here, read-only, alongside your own Scratchboard.
+let publicBoardsUnsub = null;
+let publicBoardsCache = {}; // ownerUid -> { ownerName, boards }
+function subscribeToPublicBoards() {
+  if (publicBoardsUnsub) publicBoardsUnsub();
+  publicBoardsUnsub = onSnapshot(collection(db, 'publicBoards'), snap => {
+    publicBoardsCache = {};
+    snap.forEach(d => { publicBoardsCache[d.id] = d.data(); });
+    render();
+  }, err => console.error('publicBoards subscription failed (check Firestore rules for /publicBoards):', err));
+}
+function sharesATeamWithMe(otherUid) {
+  if (!currentUser || otherUid === currentUser.uid) return false;
+  return Object.values(teams).some(t => (t.memberUids || []).includes(currentUser.uid) && (t.memberUids || []).includes(otherUid));
+}
+function teammatesPublicBoards() {
+  const out = [];
+  Object.entries(publicBoardsCache).forEach(([ownerUid, entry]) => {
+    if (!sharesATeamWithMe(ownerUid)) return;
+    (entry.boards || []).forEach(b => out.push({ ownerUid, ownerName: entry.ownerName, board: b }));
+  });
+  return out;
 }
 
 window.onBoardColorInput = function(boardId, value) {
@@ -1259,6 +1346,32 @@ window.deleteNoteLine = function(boardId, lineId) {
   }
   render();
   scheduleNotesSave();
+};
+
+// Copy a board's contents as a plain "Title" + "• line" bulleted list —
+// handy for pasting into an email, chat message, or another doc.
+function boardToClipboardText(board) {
+  const title = (board.title || '').trim() || 'Untitled Board';
+  const lines = (board.lines || []).map(l => (l.text || '').trim()).filter(Boolean);
+  if (!lines.length) return title;
+  return `${title}\n${lines.map(t => `• ${t}`).join('\n')}`;
+}
+async function copyTextToClipboard(text) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch (e) { console.error('clipboard copy failed', e); return false; }
+}
+window.copyBoardToClipboard = async function(boardId) {
+  const b = findBoard(boardId);
+  if (!b) return;
+  const ok = await copyTextToClipboard(boardToClipboardText(b));
+  showToast(ok ? 'Copied to clipboard' : "Couldn't copy — try again");
+};
+window.copySharedBoardToClipboard = async function(ownerUid, boardId) {
+  const entry = publicBoardsCache[ownerUid];
+  const b = entry && (entry.boards || []).find(x => x.id === boardId);
+  if (!b) return;
+  const ok = await copyTextToClipboard(boardToClipboardText(b));
+  showToast(ok ? 'Copied to clipboard' : "Couldn't copy — try again");
 };
 
 window.reactivateNoteLine = function(boardId, lineId) {
@@ -1999,12 +2112,44 @@ function scratchSidebarHTML() {
   return `
       <div class="notes-hdr">
         <span class="notes-title">🗒️ Scratchboard</span>
-        <span class="notes-sub">A place for anything — meeting notes, ideas, reminders. Click ➕ on any line to turn it into a goal, named "Board: line text".</span>
+        <span class="notes-sub">A place for anything — meeting notes, ideas, reminders. Click ➕ on any line to turn it into a goal, named "Board: line text". Boards are private by default — tap 🔒 to share one with your teammates, or 📋 to copy its contents.</span>
       </div>
       <div class="scratch-boards-list">
         ${scratchBoards.map(scratchBoardHTML).join('')}
       </div>
       <button class="gact" onclick="addScratchBoard()">＋ Add Board</button>
+      ${sharedBoardsSectionHTML()}
+  `;
+}
+
+// Read-only view of teammates' boards that they've flagged 🌐 public.
+function sharedBoardsSectionHTML() {
+  const shared = teammatesPublicBoards();
+  if (!shared.length) return '';
+  return `
+    <div class="notes-hdr" style="margin-top:.4rem">
+      <span class="notes-title" style="font-size:.9rem">👀 Shared with your teams</span>
+    </div>
+    <div class="scratch-boards-list">
+      ${shared.map(({ownerUid, ownerName, board}) => sharedBoardHTML(ownerUid, ownerName, board)).join('')}
+    </div>
+  `;
+}
+function sharedBoardHTML(ownerUid, ownerName, board) {
+  const color = board.color || '#c0571a';
+  const lines = (board.lines || []).filter(l => (l.text || '').trim());
+  return `
+    <div class="scratch-board shared-board" style="border-left: 4px solid ${color}">
+      <div class="scratch-board-hdr">
+        <span class="board-color-swatch" style="background:${color};display:inline-block"></span>
+        <span class="board-title-input shared-board-title">${esc(board.title || 'Untitled Board')}</span>
+        <button class="note-del-btn" onclick="copySharedBoardToClipboard('${ownerUid}','${board.id}')" title="Copy as a title + bullet list">📋</button>
+      </div>
+      <div class="shared-board-owner">by ${esc(ownerName || 'Someone')}</div>
+      <div class="notes-lines">
+        ${lines.length ? lines.map(l => `<div class="note-line shared"><span class="shared-line-text">${esc(l.text)}</span></div>`).join('') : '<div class="matrix-unrated-empty">Nothing on this board yet</div>'}
+      </div>
+    </div>
   `;
 }
 
@@ -2018,6 +2163,9 @@ function scratchBoardHTML(m) {
                title="Change this board's color" onchange="onBoardColorInput('${m.id}', this.value)"/>
         <input type="text" class="board-title-input" id="board-title-${m.id}" value="${esc(m.title)}" placeholder="Board name / topic…"
                oninput="onBoardTitleInput('${m.id}', this.value)"/>
+        <button class="board-visibility-btn ${m.public ? 'public' : ''}" onclick="toggleBoardVisibility('${m.id}')"
+                title="${m.public ? 'Public to your teammates — click to make private' : 'Private — click to share with your teammates'}">${m.public ? '🌐' : '🔒'}</button>
+        <button class="note-del-btn" onclick="copyBoardToClipboard('${m.id}')" title="Copy as a title + bullet list">📋</button>
         <button class="note-del-btn" onclick="deleteScratchBoard('${m.id}')" title="Delete this board">✕</button>
       </div>
       <div class="notes-lines">
