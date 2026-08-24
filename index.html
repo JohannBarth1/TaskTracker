@@ -187,17 +187,9 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 
 /* Inline dropdowns used inside the goal edit form (Owner / Team pickers) —
    same visual language as the team-switcher menu above. */
-.inline-dd-wrap { position: relative; min-width: 0; }
-.inline-dd-btn {
-  display: flex; align-items: center; gap: .35rem; width: 100%;
-  background: var(--warm-white); border: 1px solid var(--border); border-radius: 999px;
-  padding: .32rem .6rem; cursor: pointer; font-family: 'Lato', sans-serif; font-size: .8rem;
-  color: var(--ink); transition: background .15s; text-align: left;
-}
-.inline-dd-btn:hover { background: var(--light-brown); }
-.inline-dd-btn .owner-avatar, .inline-dd-btn .owner-avatar-init { flex-shrink: 0; }
+.inline-dd-wrap { position: relative; min-width: 0; display: inline-flex; }
 .inline-dd-menu {
-  display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  display: none; position: absolute; top: calc(100% + 4px); left: 0; min-width: 190px; max-width: 260px;
   max-height: 220px; overflow-y: auto; background: var(--warm-white); border: 1px solid var(--border);
   border-radius: 6px; box-shadow: 0 8px 24px rgba(26,18,8,.2); z-index: 210;
 }
@@ -385,7 +377,13 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .owner-avatar-init { width: 16px; height: 16px; border-radius: 50%; background: var(--brown); color: var(--light-brown); font-size: .48rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .owner-name { font-size: .66rem; color: var(--muted); font-weight: 700; }
 .rolled-badge { font-size: .58rem; color: var(--gold); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.private-badge { font-size: .58rem; color: var(--brown); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.private-badge { font-size: .7rem; line-height: 1; }
+/* Owner / team / visibility are editable right on the tile now — these
+   tags double as buttons, so give them pointer + hover feedback without
+   disturbing the badge-specific colors/borders each already carries. */
+.meta-tag-btn { cursor: pointer; font-family: inherit; outline: none; transition: opacity .15s; }
+.meta-tag-btn:hover { opacity: .72; }
+.goal-owner.meta-tag-btn { border: none; background: none; padding: 0; margin: 0; }
 .goal-actions { display: flex; gap: .3rem; flex-shrink: 0; }
 .gact {
   background: none; border: 1px solid var(--border); border-radius: 999px; cursor: pointer;
@@ -1844,11 +1842,11 @@ function goalCardHTML(g) {
       <div class="goal-body">
         ${goalTextHTML(g)}
         <div class="goal-meta">
-          <span class="goal-owner">${avatarHTML(g.uid)}<span class="owner-name">${esc(userName(g.uid))}</span></span>
+          ${ownerTagHTML(g)}
           ${isMine && scopeFilter === 'team' ? `<span class="mine-badge">★ You</span>` : ''}
-          ${isPrivate ? `<span class="private-badge">🔒</span>` : ''}
+          ${visibilityTagHTML(g)}
           ${g.rolled ? `<span class="rolled-badge">↻ rolled</span>` : ''}
-          ${scopeFilter === 'mine' ? `<span class="team-chip-mini">${esc(teamName(g.teamId))}</span>` : ''}
+          ${scopeFilter === 'mine' ? teamTagHTML(g) : ''}
         </div>
         ${editing ? goalEditFormHTML(g) : ''}
       </div>
@@ -1890,37 +1888,16 @@ window.setPillValue = function(inputId, value, btn) {
   Array.from(btn.parentElement.children).forEach(b => b.classList.toggle('active', b === btn));
 };
 
+// Owner / Team / Visibility are edited directly on the tile's tag row now
+// (see ownerTagHTML / teamTagHTML / visibilityTagHTML below) — the expanded
+// form only holds what doesn't fit as a tag: Slot, Effort & Reward (Matrix
+// only), and Date.
 function goalEditFormHTML(g) {
-  const currentGoalTeamId = g.teamId || DEFAULT_TEAM_ID;
-  const teamOptions = myTeamEntries();
-  const ownerOptions = Object.entries(users)
-    .sort((a, b) => (userName(a[0]) || '').localeCompare(userName(b[0]) || ''));
-  const isPublic = g.visibility !== 'private';
   return `
     <div class="goal-edit-form">
-      <div class="edit-row">
-        <label>👥 Team</label>
-        <div class="inline-dd-wrap">
-          <button type="button" class="inline-dd-btn" onclick="toggleInlineDD('team-menu-${g.id}')">
-            ${esc(teamName(currentGoalTeamId))} <span class="team-chevron">▾</span>
-          </button>
-          <div class="inline-dd-menu" id="team-menu-${g.id}">
-            ${teamOptions.map(([id, team]) => `
-              <button type="button" class="inline-dd-item ${id===currentGoalTeamId?'active':''}" onclick="selectGoalTeam('${g.id}','${id}')">${esc(team.name)}</button>
-            `).join('') || '<div class="inline-dd-empty">No other teams</div>'}
-          </div>
-        </div>
-      </div>
-      <div class="edit-row-split">
-        <div class="split-col">
-          <div class="split-label">Slot</div>
-          ${pillGroupHTML(`edit-slot-${g.id}`, [{value:'morning',label:'☕',title:'Morning'},{value:'afternoon',label:'🛋️',title:'Afternoon'}], g.slot || 'morning', false, `autoSaveGoalSlot('${g.id}')`)}
-        </div>
-        <div class="split-col">
-          <div class="split-label">Visible</div>
-          <button type="button" class="board-visibility-btn ${isPublic ? 'public' : ''}" onclick="toggleGoalVisibility('${g.id}')"
-                  title="${isPublic ? 'Public — whole team can see it. Click to make private.' : 'Private — just you can see it. Click to make public.'}">${isPublic ? '🌐' : '🔒'}</button>
-        </div>
+      <div class="split-col">
+        <div class="split-label">Slot</div>
+        ${pillGroupHTML(`edit-slot-${g.id}`, [{value:'morning',label:'☕',title:'Morning'},{value:'afternoon',label:'🛋️',title:'Afternoon'}], g.slot || 'morning', false, `autoSaveGoalSlot('${g.id}')`)}
       </div>
       ${currentView === 'matrix' ? `
       <div class="priority-box">
@@ -1934,26 +1911,52 @@ function goalEditFormHTML(g) {
           ${pillGroupHTML(`edit-reward-${g.id}`, [{value:'1',label:'🌱 Low',title:'Low reward'},{value:'2',label:'💎 High',title:'High reward'}], g.reward ? String(g.reward) : '', true, `autoSaveGoalPriority('${g.id}')`)}
         </div>
       </div>
-      ` : `<div class="form-note" style="margin:0">🎯 Effort &amp; Reward can only be set from the Matrix view.</div>`}
-      <div class="edit-row">
-        <label>🙋 Owner</label>
-        <div class="inline-dd-wrap">
-          <button type="button" class="inline-dd-btn" onclick="toggleInlineDD('owner-menu-${g.id}')">
-            ${avatarHTML(g.uid)} ${esc(userName(g.uid))} <span class="team-chevron">▾</span>
-          </button>
-          <div class="inline-dd-menu" id="owner-menu-${g.id}">
-            ${ownerOptions.map(([uid, u]) => `
-              <button type="button" class="inline-dd-item ${uid===g.uid?'active':''}" onclick="selectGoalOwner('${g.id}','${uid}')">${avatarHTML(uid)} ${esc(u.displayName || u.email || 'Someone')}</button>
-            `).join('')}
-          </div>
-        </div>
-      </div>
+      ` : ''}
       <div class="edit-row">
         <label>📅 Date</label>
         <input type="date" id="edit-date-${g.id}" value="${g.date}" min="${todayStr()}" onchange="autoSaveGoalDate('${g.id}', this.value)"/>
       </div>
     </div>
   `;
+}
+
+// ── EDITABLE TAGS (owner / team / visibility) — live on every tile's
+// meta row, not tucked inside the expand form, since they're the fields
+// people change most often. Clicking one edits it in place immediately.
+function ownerTagHTML(g) {
+  const ownerOptions = Object.entries(users)
+    .sort((a, b) => (userName(a[0]) || '').localeCompare(userName(b[0]) || ''));
+  return `
+    <div class="inline-dd-wrap">
+      <button type="button" class="goal-owner meta-tag-btn" onclick="toggleInlineDD('owner-menu-${g.id}')" title="Click to change owner">
+        ${avatarHTML(g.uid)}<span class="owner-name">${esc(userName(g.uid))}</span>
+      </button>
+      <div class="inline-dd-menu" id="owner-menu-${g.id}">
+        ${ownerOptions.map(([uid, u]) => `
+          <button type="button" class="inline-dd-item ${uid===g.uid?'active':''}" onclick="selectGoalOwner('${g.id}','${uid}')">${avatarHTML(uid)} ${esc(u.displayName || u.email || 'Someone')}</button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+function teamTagHTML(g) {
+  const currentGoalTeamId = g.teamId || DEFAULT_TEAM_ID;
+  const teamOptions = myTeamEntries();
+  return `
+    <div class="inline-dd-wrap">
+      <button type="button" class="team-chip-mini meta-tag-btn" onclick="toggleInlineDD('team-menu-${g.id}')" title="Click to move to another team">${esc(teamName(currentGoalTeamId))}</button>
+      <div class="inline-dd-menu" id="team-menu-${g.id}">
+        ${teamOptions.map(([id, team]) => `
+          <button type="button" class="inline-dd-item ${id===currentGoalTeamId?'active':''}" onclick="selectGoalTeam('${g.id}','${id}')">${esc(team.name)}</button>
+        `).join('') || '<div class="inline-dd-empty">No other teams</div>'}
+      </div>
+    </div>
+  `;
+}
+function visibilityTagHTML(g) {
+  const isPublic = g.visibility !== 'private';
+  return `<button type="button" class="private-badge meta-tag-btn" onclick="toggleGoalVisibility('${g.id}')"
+            title="${isPublic ? 'Public — whole team can see it. Click to make private.' : 'Private — just you can see it. Click to make public.'}">${isPublic ? '🌐' : '🔒'}</button>`;
 }
 
 window.toggleEditGoal = function(id) {
@@ -2010,7 +2013,7 @@ window.toggleInlineDD = function(menuId) {
 // that already have their own job (checkbox, subject text, action buttons,
 // or anything inside the already-expanded edit form itself).
 window.onGoalCardClick = function(e, id) {
-  if (e.target.closest('.goal-check, .gact, .goal-edit-form, .goal-text, .goal-text-input')) return;
+  if (e.target.closest('.goal-check, .gact, .goal-edit-form, .goal-text, .goal-text-input, .goal-meta')) return;
   toggleEditGoal(id);
 };
 
@@ -2357,10 +2360,10 @@ function matrixGoalHTML(g, effort, reward) {
       <div class="goal-body">
         ${goalTextHTML(g)}
         <div class="goal-meta">
-          <span class="goal-owner">${avatarHTML(g.uid)}<span class="owner-name">${esc(userName(g.uid))}</span></span>
-          ${isPrivate ? `<span class="private-badge">🔒</span>` : ''}
+          ${ownerTagHTML(g)}
+          ${visibilityTagHTML(g)}
           ${g.rolled ? `<span class="rolled-badge">↻ rolled</span>` : ''}
-          <span class="team-chip-mini">${esc(teamName(g.teamId))}</span>
+          ${teamTagHTML(g)}
         </div>
         ${editing ? goalEditFormHTML(g) : ''}
       </div>
