@@ -420,8 +420,8 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .matrix-unrated-empty { font-size: .74rem; color: var(--muted); font-style: italic; padding: .3rem; }
 
 .matrix-wrap { display: flex; gap: .5rem; }
-.matrix-axis-y { display: flex; flex-direction: column; justify-content: space-between; align-items: center; width: 22px; flex-shrink: 0; }
-.matrix-axis-y span { writing-mode: vertical-rl; transform: rotate(180deg); font-size: .6rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; white-space: nowrap; }
+.matrix-axis-y { display: flex; align-items: center; justify-content: center; width: 20px; flex-shrink: 0; }
+.matrix-axis-y span { writing-mode: vertical-rl; font-family: 'Playfair Display', serif; font-style: italic; font-size: .72rem; color: var(--muted); letter-spacing: .04em; white-space: nowrap; }
 .matrix-main { flex: 1; min-width: 0; }
 .matrix-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: .6rem; min-height: 380px; }
 .matrix-quad {
@@ -442,7 +442,7 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .matrix-quad-title { font-family: 'Playfair Display', serif; font-size: .85rem; color: var(--brown); }
 .matrix-quad-sub { font-size: .56rem; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; font-weight: 700; margin-top: -.3rem; }
 .matrix-quad-empty { font-size: .7rem; color: var(--muted); font-style: italic; }
-.matrix-axis-x { display: flex; justify-content: space-between; font-size: .6rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; padding: .4rem .3rem 0; }
+.matrix-axis-x { display: flex; justify-content: center; font-family: 'Playfair Display', serif; font-style: italic; font-size: .72rem; color: var(--muted); letter-spacing: .04em; padding: .35rem .3rem 0; }
 
 .matrix-goal { background: var(--warm-white); border: 1px solid var(--border); border-radius: 6px; padding: .4rem .55rem; cursor: grab; transition: opacity .15s; }
 .matrix-goal.dragging { opacity: .35; }
@@ -1975,7 +1975,7 @@ function renderMatrixView() {
       </div>
     </div>
     <div class="matrix-wrap">
-      <div class="matrix-axis-y"><span>High Reward</span><span>Low Reward</span></div>
+      <div class="matrix-axis-y"><span>Reward ↑</span></div>
       <div class="matrix-main">
         <div class="matrix-grid">
           ${matrixQuadHTML('q-lo-hi', 'Showroom Wins', 'Low effort · High reward', quad(1,2))}
@@ -1983,7 +1983,7 @@ function renderMatrixView() {
           ${matrixQuadHTML('q-lo-lo', 'Quick Tidy', 'Low effort · Low reward', quad(1,1))}
           ${matrixQuadHTML('q-hi-lo', 'Back of the Warehouse', 'High effort · Low reward', quad(2,1))}
         </div>
-        <div class="matrix-axis-x"><span>Low Effort</span><span>High Effort</span></div>
+        <div class="matrix-axis-x"><span>Effort →</span></div>
       </div>
     </div>
   `;
