@@ -420,8 +420,9 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .matrix-unrated-empty { font-size: .74rem; color: var(--muted); font-style: italic; padding: .3rem; }
 
 .matrix-wrap { display: flex; gap: .5rem; }
-.matrix-axis-y { display: flex; align-items: center; justify-content: center; width: 20px; flex-shrink: 0; }
-.matrix-axis-y span { writing-mode: vertical-rl; font-family: 'Playfair Display', serif; font-style: italic; font-size: .72rem; color: var(--muted); letter-spacing: .04em; white-space: nowrap; }
+.matrix-axis-y { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .3rem; width: 20px; flex-shrink: 0; }
+.matrix-axis-y .axis-arrow { font-size: .65rem; color: var(--muted); line-height: 1; }
+.matrix-axis-y .axis-word { writing-mode: vertical-rl; transform: rotate(180deg); font-family: 'Playfair Display', serif; font-style: italic; font-size: .72rem; color: var(--muted); letter-spacing: .04em; white-space: nowrap; }
 .matrix-main { flex: 1; min-width: 0; }
 .matrix-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: .6rem; min-height: 380px; }
 .matrix-quad {
@@ -465,8 +466,11 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 }
 .board-color-swatch {
   width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border);
-  padding: 0; cursor: pointer; flex-shrink: 0; background: none;
+  padding: 0; cursor: pointer; flex-shrink: 0; background: none; overflow: hidden;
 }
+.board-color-swatch::-webkit-color-swatch-wrapper { padding: 0; border-radius: 50%; }
+.board-color-swatch::-webkit-color-swatch { border: none; border-radius: 50%; }
+.board-color-swatch::-moz-color-swatch { border: none; border-radius: 50%; }
 .notes-hdr { display: flex; flex-direction: column; gap: .2rem; margin-bottom: .2rem; }
 .notes-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--brown); }
 .notes-sub { font-size: .68rem; color: var(--muted); line-height: 1.4; }
@@ -1975,7 +1979,7 @@ function renderMatrixView() {
       </div>
     </div>
     <div class="matrix-wrap">
-      <div class="matrix-axis-y"><span>Reward ↑</span></div>
+      <div class="matrix-axis-y"><span class="axis-arrow">↑</span><span class="axis-word">Reward</span></div>
       <div class="matrix-main">
         <div class="matrix-grid">
           ${matrixQuadHTML('q-lo-hi', 'Showroom Wins', 'Low effort · High reward', quad(1,2))}
