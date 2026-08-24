@@ -296,6 +296,9 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 
 /* ── MAIN ── */
 .main { flex: 1; padding: 1rem 1rem 5rem; max-width: 980px; width: 100%; margin: 0 auto; }
+/* The Matrix + Meeting Notes side-by-side layout needs more room than
+   Day/Week's centered single-column content, so it gets a wider cap. */
+.main.view-matrix { max-width: 1280px; }
 
 /* ── TODAY VIEW ── */
 .today-hero { text-align: center; margin-bottom: 1.1rem; }
@@ -317,6 +320,12 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 }
 .goal-card.completed { background: var(--success-pale); border-color: rgba(42,122,74,.3); }
 .goal-card.is-private { border-left: 3px solid var(--brown); }
+/* "My tasks" get a distinct gold-tinted treatment in Team Board so they
+   stand out from teammates' goals at a glance, not just via small owner text. */
+.goal-card.is-mine { border-left: 3px solid var(--gold); background: #fffbf0; }
+.goal-card.is-mine.is-private { border-left: 3px solid var(--gold); } /* gold wins over brown when both apply */
+.mine-badge { font-size: .58rem; color: var(--gold); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.wk-goal.is-mine { border-left: 3px solid var(--gold); background: #fffbf0; }
 .goal-check {
   width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; margin-top: 1px;
   border: 2px solid var(--border); background: transparent; cursor: pointer;
@@ -402,9 +411,14 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .matrix-quad {
   border: 1px solid var(--border); border-radius: 8px; padding: .6rem;
   display: flex; flex-direction: column; gap: .4rem; overflow-y: auto;
-  transition: background .12s, outline .12s;
+  transition: background .12s, outline .12s, box-shadow .15s; cursor: pointer;
 }
 .matrix-quad.drag-over { outline: 2px dashed var(--gold); }
+.matrix-quad.selected { box-shadow: 0 0 0 2px var(--rust) inset; }
+.quad-compose-row input {
+  width: 100%; padding: .35rem .6rem; border: 1px solid var(--rust); border-radius: 999px;
+  font-family: 'Lato', sans-serif; font-size: .8rem; background: var(--warm-white); outline: none;
+}
 .matrix-quad.q-hi-hi { background: var(--success-pale); }
 .matrix-quad.q-lo-hi { background: #eef6ea; }
 .matrix-quad.q-hi-lo { background: #f2ebe0; }
@@ -648,6 +662,8 @@ let scopeFilter   = 'team';   // 'team' (everyone's public goals) | 'mine' (just
 let currentTeamId = DEFAULT_TEAM_ID;
 let editingGoalId = null;     // id of the goal currently showing its inline edit panel
 let notesLines = [{ id: 'l0', text: '', converted: false }]; // Meeting Notes — one running notepad per user
+let selectedQuadrant = null;  // {effort, reward} — click a Matrix quadrant to select it
+let quadComposeActive = false; // true once you've started typing a new goal into the selected quadrant
 let notesUnsub = null;
 let notesSaveTimer = null;
 let weekOffset    = 0;        // 0 = this week, -1 = last week, +1 = next week
@@ -881,6 +897,12 @@ document.addEventListener('click', e => {
   if (wrap && !wrap.contains(e.target)) document.getElementById('avatarDropdown').classList.remove('open');
   const tw = document.querySelector('.team-switcher');
   if (tw && !tw.contains(e.target)) document.getElementById('teamMenu').classList.remove('open');
+  // Clicking outside every quadrant deselects the Matrix's type-to-add target
+  if (selectedQuadrant && currentView === 'matrix' && !e.target.closest('.matrix-quad')) {
+    selectedQuadrant = null;
+    quadComposeActive = false;
+    render();
+  }
 });
 
 // ── USERS ─────────────────────────────────────────────────
@@ -1297,6 +1319,7 @@ window.setScope = function(s) {
 
 window.setView = function(v) {
   currentView = v;
+  if (v !== 'matrix') { selectedQuadrant = null; quadComposeActive = false; }
   document.getElementById('viewTodayBtn').classList.toggle('active', v === 'today');
   document.getElementById('viewWeekBtn').classList.toggle('active', v === 'week');
   document.getElementById('viewMatrixBtn').classList.toggle('active', v === 'matrix');
@@ -1339,6 +1362,8 @@ function render() {
   // "Today" jump button only shows when date-nav is relevant AND you're not already looking at today.
   const atHome = currentView === 'today' && weekOffset === 0 && selectedDate === todayStr();
   document.getElementById('todayJumpBtn').style.display = (dateNavRelevant && !atHome) ? '' : 'none';
+
+  document.querySelector('main.main').classList.toggle('view-matrix', currentView === 'matrix');
 
   const board = document.getElementById('board');
   const banner = scopeFilter === 'mine' && currentView !== 'matrix'
@@ -1437,8 +1462,9 @@ function slotSectionHTML(dateStr, slot, icon, label) {
 function goalCardHTML(g) {
   const editing = g.id === editingGoalId;
   const isPrivate = g.visibility === 'private';
+  const isMine = g.uid === (currentUser && currentUser.uid);
   return `
-    <div class="goal-card ${g.completed ? 'completed' : ''} ${isPrivate ? 'is-private' : ''}"
+    <div class="goal-card ${g.completed ? 'completed' : ''} ${isPrivate ? 'is-private' : ''} ${isMine ? 'is-mine' : ''}"
          draggable="true"
          ondragstart="onGoalDragStart(event,'${g.id}')"
          ondragend="onGoalDragEnd(event)"
@@ -1449,6 +1475,7 @@ function goalCardHTML(g) {
         <div class="goal-text">${esc(g.text)}</div>
         <div class="goal-meta">
           <span class="goal-owner">${avatarHTML(g.uid)}<span class="owner-name">${esc(userName(g.uid))}</span></span>
+          ${isMine && scopeFilter === 'team' ? `<span class="mine-badge">★ You</span>` : ''}
           ${isPrivate ? `<span class="private-badge">🔒 private</span>` : ''}
           ${g.rolled ? `<span class="rolled-badge">↻ rolled</span>` : ''}
           ${scopeFilter === 'mine' ? `<span class="team-chip-mini">${esc(teamName(g.teamId))}</span>` : ''}
@@ -1665,7 +1692,7 @@ function weekSlotHTML(dateStr, slot, icon) {
            ondragleave="onSlotDragLeave(event)"
            ondrop="onSlotDrop(event,'${dateStr}','${slot}')">
         ${list.length ? list.map(g => `
-          <div class="wk-goal ${g.completed?'completed':''} ${g.visibility==='private'?'is-private':''}"
+          <div class="wk-goal ${g.completed?'completed':''} ${g.visibility==='private'?'is-private':''} ${g.uid===(currentUser&&currentUser.uid)?'is-mine':''}"
                draggable="true"
                ondragstart="onGoalDragStart(event,'${g.id}')"
                ondragend="onGoalDragEnd(event)"
@@ -1761,14 +1788,69 @@ function noteLineHTML(l) {
   `;
 }
 
+// Click a quadrant to select it (visual highlight), then just start
+// typing — no need to click into an input first. The first keystroke
+// opens a small compose field pre-filled with what you typed; Enter
+// submits it as a new goal already rated for that quadrant, and the
+// quadrant stays selected so you can keep typing more in a row.
+window.selectQuadrant = function(effort, reward, evt) {
+  if (evt && evt.target.closest && evt.target.closest('.goal-card')) return; // let card clicks behave normally
+  selectedQuadrant = { effort, reward };
+  quadComposeActive = false;
+  render();
+};
+
+document.addEventListener('keydown', e => {
+  if (currentView !== 'matrix' || !selectedQuadrant || quadComposeActive) return;
+  const activeTag = document.activeElement && document.activeElement.tagName;
+  if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return; // already typing somewhere else
+  if (document.getElementById('modalOverlay').classList.contains('open')) return;
+  if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return; // only plain printable characters
+  e.preventDefault();
+  quadComposeActive = true;
+  render();
+  const input = document.getElementById('quad-compose-input');
+  if (input) { input.value = e.key; input.focus(); input.setSelectionRange(1, 1); }
+});
+
+window.onQuadComposeKeydown = function(e, effort, reward) {
+  if (e.key === 'Enter') { e.preventDefault(); submitQuadCompose(effort, reward); }
+  else if (e.key === 'Escape') { e.preventDefault(); quadComposeActive = false; render(); }
+};
+
+window.submitQuadCompose = async function(effort, reward) {
+  const input = document.getElementById('quad-compose-input');
+  const text = (input ? input.value : '').trim();
+  quadComposeActive = false;
+  if (!text) { render(); return; }
+  const date = isWeekend(todayStr()) ? nextWeekday(todayStr()) : todayStr();
+  await addDoc(collection(db, 'goals'), {
+    text, date, slot: 'morning',
+    uid: currentUser.uid, teamId: currentTeamId,
+    visibility: 'private', completed: false,
+    effort, reward,
+    createdAt: serverTimestamp(), createdAtMs: Date.now(), order: Date.now()
+  });
+  render();
+};
+
 function matrixQuadHTML(cls, title, sub, list) {
   const [effort, reward] = cls === 'q-lo-hi' ? [1,2] : cls === 'q-hi-hi' ? [2,2] : cls === 'q-lo-lo' ? [1,1] : [2,1];
+  const isSelected = selectedQuadrant && selectedQuadrant.effort === effort && selectedQuadrant.reward === reward;
+  const isComposing = isSelected && quadComposeActive;
   return `
-    <div class="matrix-quad ${cls}"
+    <div class="matrix-quad ${cls} ${isSelected ? 'selected' : ''}"
+         onclick="selectQuadrant(${effort},${reward},event)"
          ondragover="onMatrixDragOver(event)" ondragleave="onMatrixDragLeave(event)" ondrop="onMatrixDrop(event,${effort},${reward})">
       <div class="matrix-quad-title">${title}</div>
       <div class="matrix-quad-sub">${sub}</div>
-      ${list.length ? list.map(g => matrixGoalHTML(g, effort, reward)).join('') : `<div class="matrix-quad-empty">Drop a goal here</div>`}
+      ${isComposing ? `
+        <div class="quad-compose-row" onclick="event.stopPropagation()">
+          <input type="text" id="quad-compose-input" placeholder="Type a goal, press Enter…"
+                 onkeydown="onQuadComposeKeydown(event,${effort},${reward})"/>
+        </div>
+      ` : ''}
+      ${list.length ? list.map(g => matrixGoalHTML(g, effort, reward)).join('') : (isComposing ? '' : `<div class="matrix-quad-empty">${isSelected ? 'Selected — just start typing' : 'Drop a goal here'}</div>`)}
     </div>
   `;
 }
