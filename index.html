@@ -185,6 +185,32 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 }
 .team-menu-item:hover { background: var(--panel); }
 
+/* Inline dropdowns used inside the goal edit form (Owner / Team pickers) —
+   same visual language as the team-switcher menu above. */
+.inline-dd-wrap { position: relative; min-width: 0; }
+.inline-dd-btn {
+  display: flex; align-items: center; gap: .35rem; width: 100%;
+  background: var(--warm-white); border: 1px solid var(--border); border-radius: 999px;
+  padding: .32rem .6rem; cursor: pointer; font-family: 'Lato', sans-serif; font-size: .8rem;
+  color: var(--ink); transition: background .15s; text-align: left;
+}
+.inline-dd-btn:hover { background: var(--light-brown); }
+.inline-dd-btn .owner-avatar, .inline-dd-btn .owner-avatar-init { flex-shrink: 0; }
+.inline-dd-menu {
+  display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  max-height: 220px; overflow-y: auto; background: var(--warm-white); border: 1px solid var(--border);
+  border-radius: 6px; box-shadow: 0 8px 24px rgba(26,18,8,.2); z-index: 210;
+}
+.inline-dd-menu.open { display: block; }
+.inline-dd-item {
+  width: 100%; display: flex; align-items: center; gap: .4rem; text-align: left;
+  background: none; border: none; cursor: pointer; padding: .4rem .6rem;
+  font-size: .78rem; color: var(--ink); font-family: 'Lato', sans-serif; transition: background .12s;
+}
+.inline-dd-item:hover { background: var(--panel); }
+.inline-dd-item.active { background: var(--light-brown); font-weight: 700; }
+.inline-dd-empty { padding: .5rem .6rem; font-size: .72rem; color: var(--muted); font-style: italic; }
+
 /* ── TOOLBAR / WEEK NAV ── */
 .toolbar {
   background: var(--panel); border-bottom: 1px solid var(--border);
@@ -983,6 +1009,14 @@ document.addEventListener('click', e => {
   if (wrap && !wrap.contains(e.target)) document.getElementById('avatarDropdown').classList.remove('open');
   const tw = document.querySelector('.team-switcher');
   if (tw && !tw.contains(e.target)) document.getElementById('teamMenu').classList.remove('open');
+  // Close any open inline dropdown (goal edit form's Owner/Team pickers) if
+  // the click landed outside its own wrapper.
+  document.querySelectorAll('.inline-dd-wrap').forEach(wrap => {
+    if (!wrap.contains(e.target)) {
+      const menu = wrap.querySelector('.inline-dd-menu');
+      if (menu) menu.classList.remove('open');
+    }
+  });
   // Clicking outside every quadrant deselects the Matrix's type-to-add target
   if (selectedQuadrant && currentView === 'matrix' && !e.target.closest('.matrix-quad')) {
     selectedQuadrant = null;
@@ -1801,6 +1835,7 @@ function goalCardHTML(g) {
   return `
     <div class="goal-card ${g.completed ? 'completed' : ''} ${isPrivate ? 'is-private' : ''} ${isMine ? 'is-mine' : ''}"
          draggable="true"
+         onclick="onGoalCardClick(event,'${g.id}')"
          ondragstart="onGoalDragStart(event,'${g.id}')"
          ondragend="onGoalDragEnd(event)"
          ondragover="event.preventDefault(); event.stopPropagation();"
@@ -1811,14 +1846,14 @@ function goalCardHTML(g) {
         <div class="goal-meta">
           <span class="goal-owner">${avatarHTML(g.uid)}<span class="owner-name">${esc(userName(g.uid))}</span></span>
           ${isMine && scopeFilter === 'team' ? `<span class="mine-badge">★ You</span>` : ''}
-          ${isPrivate ? `<span class="private-badge">🔒 private</span>` : ''}
+          ${isPrivate ? `<span class="private-badge">🔒</span>` : ''}
           ${g.rolled ? `<span class="rolled-badge">↻ rolled</span>` : ''}
           ${scopeFilter === 'mine' ? `<span class="team-chip-mini">${esc(teamName(g.teamId))}</span>` : ''}
         </div>
         ${editing ? goalEditFormHTML(g) : ''}
       </div>
       <div class="goal-actions">
-        <button class="gact" onclick="toggleEditGoal('${g.id}')" title="Change owner, date, slot or visibility">✎</button>
+        <button class="gact" onclick="toggleEditGoal('${g.id}')" title="Expand to edit owner, date, slot or visibility">${editing ? '▲' : '▾'}</button>
         <button class="gact roll" onclick="rollGoal('${g.id}')" title="Move to next day">↻</button>
         <button class="gact del" onclick="deleteGoal('${g.id}')" title="Delete">✕</button>
       </div>
@@ -1827,18 +1862,19 @@ function goalCardHTML(g) {
 }
 
 // Small pill-toggle-group builder shared by every either/or field in the
-// edit form. Renders a hidden input (read by saveGoalEdit, same as a
-// <select> would be) plus a row of pill buttons that set its value.
+// edit form. Renders a hidden input holding the current value plus a row
+// of pill buttons that set it — each button also fires an optional
+// auto-save callback immediately, since the form has no Save button.
 // Pill-toggle-group builder. Mandatory groups (slot, visibility) always
 // keep exactly one option active. Optional groups (effort, reward) let you
 // tap the already-active pill again to clear it back to unset — no
 // separate "not set" button needed.
-function pillGroupHTML(inputId, options, current, optional) {
+function pillGroupHTML(inputId, options, current, optional, onSelect) {
   const cur = current ?? '';
   return `
     <input type="hidden" id="${inputId}" value="${esc(cur)}" data-optional="${optional ? '1' : '0'}"/>
     <div class="pill-toggle-group">
-      ${options.map(o => `<button type="button" class="pill-toggle ${String(o.value)===String(cur)?'active':''}" title="${esc(o.title)}" onclick="setPillValue('${inputId}','${o.value}',this)">${o.label}</button>`).join('')}
+      ${options.map(o => `<button type="button" class="pill-toggle ${String(o.value)===String(cur)?'active':''}" title="${esc(o.title)}" onclick="setPillValue('${inputId}','${o.value}',this);${onSelect || ''}">${o.label}</button>`).join('')}
     </div>
   `;
 }
@@ -1855,27 +1891,35 @@ window.setPillValue = function(inputId, value, btn) {
 };
 
 function goalEditFormHTML(g) {
-  const ownerOptions = Object.entries(users)
-    .map(([uid,u]) => `<option value="${uid}" ${uid===g.uid?'selected':''}>${esc(u.displayName || u.email || 'Someone')}</option>`)
-    .join('');
   const currentGoalTeamId = g.teamId || DEFAULT_TEAM_ID;
-  const teamOptions = myTeamEntries()
-    .map(([id, team]) => `<option value="${id}" ${id===currentGoalTeamId?'selected':''}>${esc(team.name)}</option>`)
-    .join('');
+  const teamOptions = myTeamEntries();
+  const ownerOptions = Object.entries(users)
+    .sort((a, b) => (userName(a[0]) || '').localeCompare(userName(b[0]) || ''));
+  const isPublic = g.visibility !== 'private';
   return `
-    <div class="goal-edit-form" onclick="event.stopPropagation()">
+    <div class="goal-edit-form">
       <div class="edit-row">
         <label>👥 Team</label>
-        <select id="edit-team-${g.id}">${teamOptions}</select>
+        <div class="inline-dd-wrap">
+          <button type="button" class="inline-dd-btn" onclick="toggleInlineDD('team-menu-${g.id}')">
+            ${esc(teamName(currentGoalTeamId))} <span class="team-chevron">▾</span>
+          </button>
+          <div class="inline-dd-menu" id="team-menu-${g.id}">
+            ${teamOptions.map(([id, team]) => `
+              <button type="button" class="inline-dd-item ${id===currentGoalTeamId?'active':''}" onclick="selectGoalTeam('${g.id}','${id}')">${esc(team.name)}</button>
+            `).join('') || '<div class="inline-dd-empty">No other teams</div>'}
+          </div>
+        </div>
       </div>
       <div class="edit-row-split">
         <div class="split-col">
           <div class="split-label">Slot</div>
-          ${pillGroupHTML(`edit-slot-${g.id}`, [{value:'morning',label:'☕',title:'Morning'},{value:'afternoon',label:'🛋️',title:'Afternoon'}], g.slot || 'morning', false)}
+          ${pillGroupHTML(`edit-slot-${g.id}`, [{value:'morning',label:'☕',title:'Morning'},{value:'afternoon',label:'🛋️',title:'Afternoon'}], g.slot || 'morning', false, `autoSaveGoalSlot('${g.id}')`)}
         </div>
         <div class="split-col">
           <div class="split-label">Visible</div>
-          ${pillGroupHTML(`edit-vis-${g.id}`, [{value:'public',label:'🌐',title:'Public — whole team'},{value:'private',label:'🔒',title:'Private — just you'}], g.visibility === 'private' ? 'private' : 'public', false)}
+          <button type="button" class="board-visibility-btn ${isPublic ? 'public' : ''}" onclick="toggleGoalVisibility('${g.id}')"
+                  title="${isPublic ? 'Public — whole team can see it. Click to make private.' : 'Private — just you can see it. Click to make public.'}">${isPublic ? '🌐' : '🔒'}</button>
         </div>
       </div>
       ${currentView === 'matrix' ? `
@@ -1883,25 +1927,30 @@ function goalEditFormHTML(g) {
         <div class="priority-box-hdr">🎯 Priority <span style="text-transform:none;letter-spacing:0;font-weight:400">— tap again to clear</span></div>
         <div class="priority-box-row">
           <span class="priority-box-label">Effort</span>
-          ${pillGroupHTML(`edit-effort-${g.id}`, [{value:'1',label:'🙂 Low',title:'Low effort'},{value:'2',label:'💪 High',title:'High effort'}], g.effort ? String(g.effort) : '', true)}
+          ${pillGroupHTML(`edit-effort-${g.id}`, [{value:'1',label:'🙂 Low',title:'Low effort'},{value:'2',label:'💪 High',title:'High effort'}], g.effort ? String(g.effort) : '', true, `autoSaveGoalPriority('${g.id}')`)}
         </div>
         <div class="priority-box-row">
           <span class="priority-box-label">Reward</span>
-          ${pillGroupHTML(`edit-reward-${g.id}`, [{value:'1',label:'🌱 Low',title:'Low reward'},{value:'2',label:'💎 High',title:'High reward'}], g.reward ? String(g.reward) : '', true)}
+          ${pillGroupHTML(`edit-reward-${g.id}`, [{value:'1',label:'🌱 Low',title:'Low reward'},{value:'2',label:'💎 High',title:'High reward'}], g.reward ? String(g.reward) : '', true, `autoSaveGoalPriority('${g.id}')`)}
         </div>
       </div>
       ` : `<div class="form-note" style="margin:0">🎯 Effort &amp; Reward can only be set from the Matrix view.</div>`}
       <div class="edit-row">
         <label>🙋 Owner</label>
-        <select id="edit-owner-${g.id}">${ownerOptions}</select>
+        <div class="inline-dd-wrap">
+          <button type="button" class="inline-dd-btn" onclick="toggleInlineDD('owner-menu-${g.id}')">
+            ${avatarHTML(g.uid)} ${esc(userName(g.uid))} <span class="team-chevron">▾</span>
+          </button>
+          <div class="inline-dd-menu" id="owner-menu-${g.id}">
+            ${ownerOptions.map(([uid, u]) => `
+              <button type="button" class="inline-dd-item ${uid===g.uid?'active':''}" onclick="selectGoalOwner('${g.id}','${uid}')">${avatarHTML(uid)} ${esc(u.displayName || u.email || 'Someone')}</button>
+            `).join('')}
+          </div>
+        </div>
       </div>
       <div class="edit-row">
         <label>📅 Date</label>
-        <input type="date" id="edit-date-${g.id}" value="${g.date}" min="${todayStr()}"/>
-      </div>
-      <div class="edit-actions">
-        <button class="gact" onclick="toggleEditGoal('${g.id}')">Cancel</button>
-        <button class="gact save" onclick="saveGoalEdit('${g.id}')">Save</button>
+        <input type="date" id="edit-date-${g.id}" value="${g.date}" min="${todayStr()}" onchange="autoSaveGoalDate('${g.id}', this.value)"/>
       </div>
     </div>
   `;
@@ -1912,26 +1961,57 @@ window.toggleEditGoal = function(id) {
   render();
 };
 
-window.saveGoalEdit = async function(id) {
-  const uid        = document.getElementById(`edit-owner-${id}`).value;
-  const teamId     = document.getElementById(`edit-team-${id}`).value;
-  const date       = document.getElementById(`edit-date-${id}`).value;
-  const slot       = document.getElementById(`edit-slot-${id}`).value;
-  const visibility = document.getElementById(`edit-vis-${id}`).value;
-  if (!date) { showToast('Pick a date'); return; }
-  if (date < todayStr()) { showToast('Pick today or a future date — past days are locked'); return; }
-  if (isWeekend(date)) { showToast('Pick a weekday — Mon to Fri only'); return; }
-  if (!teamId) { showToast("You're not a member of any team"); return; }
-  const patch = { uid, teamId, date, slot, visibility, rolled: false };
-  // Effort/Reward only exist in this form within the Matrix view — everywhere
-  // else, priority is left untouched (matches those quadrant pills 1:1 anyway).
+// Every field in the expanded goal card saves itself the moment it changes
+// — no Save button, no Cancel; the card just reflects the live doc.
+window.autoSaveGoalSlot = async function(id) {
+  const el = document.getElementById(`edit-slot-${id}`);
+  if (!el) return;
+  await updateDoc(doc(db, 'goals', id), { slot: el.value, rolled: false });
+};
+window.autoSaveGoalPriority = async function(id) {
   const effortEl = document.getElementById(`edit-effort-${id}`);
   const rewardEl = document.getElementById(`edit-reward-${id}`);
+  const patch = {};
   if (effortEl) patch.effort = effortEl.value ? Number(effortEl.value) : null;
   if (rewardEl) patch.reward = rewardEl.value ? Number(rewardEl.value) : null;
   await updateDoc(doc(db, 'goals', id), patch);
-  editingGoalId = null;
-  showToast('Goal updated');
+};
+window.autoSaveGoalDate = async function(id, value) {
+  if (!value) { showToast('Pick a date'); render(); return; }
+  if (value < todayStr()) { showToast('Pick today or a future date — past days are locked'); render(); return; }
+  if (isWeekend(value)) { showToast('Pick a weekday — Mon to Fri only'); render(); return; }
+  await updateDoc(doc(db, 'goals', id), { date: value, rolled: false });
+};
+window.toggleGoalVisibility = async function(id) {
+  const g = goals.find(x => x.id === id);
+  if (!g) return;
+  const next = g.visibility === 'private' ? 'public' : 'private';
+  await updateDoc(doc(db, 'goals', id), { visibility: next });
+};
+window.selectGoalOwner = async function(id, uid) {
+  const menu = document.getElementById(`owner-menu-${id}`);
+  if (menu) menu.classList.remove('open');
+  await updateDoc(doc(db, 'goals', id), { uid });
+};
+window.selectGoalTeam = async function(id, teamId) {
+  const menu = document.getElementById(`team-menu-${id}`);
+  if (menu) menu.classList.remove('open');
+  await updateDoc(doc(db, 'goals', id), { teamId });
+};
+window.toggleInlineDD = function(menuId) {
+  const menu = document.getElementById(menuId);
+  if (!menu) return;
+  const wasOpen = menu.classList.contains('open');
+  document.querySelectorAll('.inline-dd-menu.open').forEach(m => m.classList.remove('open'));
+  if (!wasOpen) menu.classList.add('open');
+};
+
+// Clicking a goal card anywhere expands/collapses it — except on the parts
+// that already have their own job (checkbox, subject text, action buttons,
+// or anything inside the already-expanded edit form itself).
+window.onGoalCardClick = function(e, id) {
+  if (e.target.closest('.goal-check, .gact, .goal-edit-form, .goal-text, .goal-text-input')) return;
+  toggleEditGoal(id);
 };
 
 // ── DRAG & DROP ──────────────────────────────────────────
@@ -2268,6 +2348,7 @@ function matrixGoalHTML(g, effort, reward) {
   return `
     <div class="goal-card matrix-goal ${g.completed ? 'completed' : ''} ${isPrivate ? 'is-private' : ''}"
          draggable="true"
+         onclick="onGoalCardClick(event,'${g.id}')"
          ondragstart="onGoalDragStart(event,'${g.id}')"
          ondragend="onGoalDragEnd(event)"
          ondragover="event.preventDefault(); event.stopPropagation();"
@@ -2277,14 +2358,14 @@ function matrixGoalHTML(g, effort, reward) {
         ${goalTextHTML(g)}
         <div class="goal-meta">
           <span class="goal-owner">${avatarHTML(g.uid)}<span class="owner-name">${esc(userName(g.uid))}</span></span>
-          ${isPrivate ? `<span class="private-badge">🔒 private</span>` : ''}
+          ${isPrivate ? `<span class="private-badge">🔒</span>` : ''}
           ${g.rolled ? `<span class="rolled-badge">↻ rolled</span>` : ''}
           <span class="team-chip-mini">${esc(teamName(g.teamId))}</span>
         </div>
         ${editing ? goalEditFormHTML(g) : ''}
       </div>
       <div class="goal-actions">
-        <button class="gact" onclick="toggleEditGoal('${g.id}')" title="Change owner, date, slot or visibility">✎</button>
+        <button class="gact" onclick="toggleEditGoal('${g.id}')" title="Expand to edit owner, date, slot or visibility">${editing ? '▲' : '▾'}</button>
         <button class="gact roll" onclick="rollGoal('${g.id}')" title="Move to next day">↻</button>
         <button class="gact del" onclick="deleteGoal('${g.id}')" title="Delete">✕</button>
       </div>
