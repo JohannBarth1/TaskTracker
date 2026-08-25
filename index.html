@@ -510,8 +510,20 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   padding: .8rem .9rem; display: flex; flex-direction: column; gap: .5rem;
 }
 .completed-count { font-size: .58rem; background: var(--success-pale); color: var(--success); border-radius: 10px; padding: 1px 7px; font-weight: 700; vertical-align: middle; margin-left: .3rem; }
-.completed-list { display: flex; flex-direction: column; gap: .5rem; max-height: 70vh; overflow-y: auto; }
+.completed-groups { display: flex; flex-direction: column; gap: .4rem; max-height: 70vh; overflow-y: auto; }
 .completed-empty { font-size: .72rem; color: var(--muted); font-style: italic; }
+/* Day groups — collapsed by default except Today, per group. */
+.completed-day-group { border-top: 1px solid var(--border); padding-top: .4rem; }
+.completed-day-group:first-child { border-top: none; padding-top: 0; }
+.completed-day-hdr {
+  width: 100%; display: flex; align-items: center; gap: .4rem; background: none; border: none;
+  cursor: pointer; padding: .15rem 0; font-family: 'Playfair Display', serif; font-style: italic;
+  font-size: .85rem; color: var(--brown); text-align: left;
+}
+.completed-day-chevron { font-size: .65rem; color: var(--muted); flex-shrink: 0; width: .8rem; }
+.completed-day-label { flex: 1; min-width: 0; }
+.completed-day-body { margin-top: .4rem; padding-left: 1.2rem; }
+.completed-board { opacity: .92; }
 .board-color-swatch {
   width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border);
   padding: 0; cursor: pointer; flex-shrink: 0; background: none; overflow: hidden;
@@ -786,6 +798,10 @@ let currentView   = 'today';  // 'today' | 'week'
 let scopeFilter   = 'team';   // 'team' (everyone's public goals) | 'mine' (just current user)
 let currentTeamId = DEFAULT_TEAM_ID;
 let editingGoalId = null;     // id of the goal currently showing its inline edit panel
+// Which day-groups in the Completed panel are expanded. Today's group
+// starts open, every other day starts collapsed — this Set just tracks
+// which day-keys (ymd strings) have been toggled open during the session.
+let completedExpandedDays = new Set([todayStr()]);
 let scratchBoards = [{ id: 'm0', title: 'Untitled Board', lines: [{ id: 'l0', text: '', converted: false }] }]; // Untitled Board — multiple named meeting blocks per user
 let inlineEditingTextId = null; // goal id whose text is being edited inline, directly on the tile
 let selectedQuadrant = null;  // {effort, reward} — click a Matrix quadrant to select it
@@ -1238,7 +1254,7 @@ function genId(prefix) { return prefix + Date.now().toString(36) + Math.random()
 const BOARD_COLORS = ['#c0571a', '#2a7a4a', '#3d6b8a', '#8a4a8a', '#b08a2a', '#4a6b3d', '#a0334f', '#5a4a8a'];
 function nextBoardColor() { return BOARD_COLORS[scratchBoards.length % BOARD_COLORS.length]; }
 
-function defaultBoard() { return { id: genId('m'), title: 'Untitled Board', color: nextBoardColor(), public: false, lines: [{ id: genId('l'), text: '', converted: false }] }; }
+function defaultBoard() { return { id: genId('m'), title: 'Untitled Board', color: nextBoardColor(), public: false, completed: false, completedAt: null, lines: [{ id: genId('l'), text: '', converted: false }] }; }
 
 function subscribeToNotes() {
   if (notesUnsub) notesUnsub();
@@ -1260,6 +1276,8 @@ function subscribeToNotes() {
     scratchBoards.forEach((b, i) => {
       if (!b.color) b.color = BOARD_COLORS[i % BOARD_COLORS.length];
       if (typeof b.public !== 'boolean') b.public = false;
+      if (typeof b.completed !== 'boolean') b.completed = false;
+      if (b.completedAt === undefined) b.completedAt = null;
     });
     render();
   }, err => console.error('notes subscription failed (check Firestore rules for /notes):', err));
@@ -1281,7 +1299,7 @@ function scheduleNotesSave() {
 // it only ever contains the boards you've explicitly flagged public.
 async function syncPublicBoardsMirror() {
   if (!currentUser) return;
-  const publicOnes = scratchBoards.filter(b => b.public);
+  const publicOnes = scratchBoards.filter(b => b.public && !b.completed);
   const ref = doc(db, 'publicBoards', currentUser.uid);
   try {
     if (publicOnes.length) {
@@ -1304,6 +1322,21 @@ window.toggleBoardVisibility = function(boardId) {
   render();
   scheduleNotesSave();
   showToast(b.public ? 'Board made public to your teammates' : 'Board made private');
+};
+
+// Completing a board archives it — it drops out of the active Scratchboard
+// list and shows up instead in the Completed panel, grouped by the day it
+// was finished, right alongside completed goals. Un-completing it (from
+// that panel) brings it straight back to the active list.
+window.toggleBoardCompleted = function(boardId) {
+  const b = findBoard(boardId);
+  if (!b) return;
+  b.completed = !b.completed;
+  b.completedAt = b.completed ? Date.now() : null;
+  if (b.completed) completedExpandedDays.add(todayStr());
+  render();
+  scheduleNotesSave();
+  showToast(b.completed ? 'Board archived to Completed' : 'Board restored to your Scratchboard');
 };
 
 // ── SHARED (PUBLIC) BOARDS FROM TEAMMATES ──────────────────
@@ -2274,24 +2307,98 @@ function renderMatrixView() {
 // A plain reference list of every goal you've ever completed, newest
 // first — not scoped to a team/date/view, just "everything I've finished".
 // Read-only; nothing here is clickable or editable.
-function completedGoalsList() {
+// Everything that's been "finished" — completed goals AND completed
+// (archived) Scratchboard boards — combined into one dated timeline.
+function completedEntries() {
   const myUid = currentUser && currentUser.uid;
-  return goals
+  const goalEntries = goals
     .filter(g => g.completed && g.uid === myUid)
-    .sort((a, b) => {
-      const at = (a.completedAt && a.completedAt.toMillis) ? a.completedAt.toMillis() : (a.createdAtMs || 0);
-      const bt = (b.completedAt && b.completedAt.toMillis) ? b.completedAt.toMillis() : (b.createdAtMs || 0);
-      return bt - at;
-    });
+    .map(g => ({
+      type: 'goal',
+      item: g,
+      ts: (g.completedAt && g.completedAt.toMillis) ? g.completedAt.toMillis() : (g.createdAtMs || 0)
+    }));
+  const boardEntries = scratchBoards
+    .filter(b => b.completed)
+    .map(b => ({ type: 'board', item: b, ts: b.completedAt || 0 }));
+  return goalEntries.concat(boardEntries).sort((a, b) => b.ts - a.ts);
 }
+
+// Groups the combined list by the local calendar day each entry finished
+// on (dayKey = ymd string, or 'unknown' for old completed goals from
+// before completedAt existed) — preserves the newest-first order of days
+// since entries arrive already sorted newest-first.
+function groupCompletedByDay(entries) {
+  const order = [];
+  const map = new Map();
+  entries.forEach(e => {
+    const dayKey = e.ts ? ymd(new Date(e.ts)) : 'unknown';
+    if (!map.has(dayKey)) { map.set(dayKey, []); order.push(dayKey); }
+    map.get(dayKey).push(e);
+  });
+  return order.map(dayKey => ({ dayKey, entries: map.get(dayKey) }));
+}
+
+function dayGroupLabel(dayKey) {
+  if (dayKey === 'unknown') return 'Earlier';
+  const today = todayStr();
+  if (dayKey === today) return 'Today';
+  if (dayKey === addDays(today, -1)) return 'Yesterday';
+  return `${DAY_NAMES[parseYmd(dayKey).getDay()].slice(0,3)}, ${fmtShort(dayKey)}`;
+}
+
+window.toggleCompletedDay = function(dayKey) {
+  if (completedExpandedDays.has(dayKey)) completedExpandedDays.delete(dayKey);
+  else completedExpandedDays.add(dayKey);
+  render();
+};
+
 function completedPanelHTML() {
-  const list = completedGoalsList();
+  const groups = groupCompletedByDay(completedEntries());
+  const totalCount = groups.reduce((n, g) => n + g.entries.length, 0);
   return `
     <div class="notes-hdr">
-      <span class="notes-title">✅ Completed <span class="completed-count">${list.length}</span></span>
+      <span class="notes-title">✅ Completed <span class="completed-count">${totalCount}</span></span>
     </div>
-    <div class="completed-list goal-list">
-      ${list.length ? list.map(g => goalCardHTML(g)).join('') : '<div class="completed-empty">Nothing completed yet</div>'}
+    <div class="completed-groups">
+      ${groups.length ? groups.map(completedDayGroupHTML).join('') : '<div class="completed-empty">Nothing completed yet</div>'}
+    </div>
+  `;
+}
+function completedDayGroupHTML(group) {
+  const isOpen = completedExpandedDays.has(group.dayKey);
+  return `
+    <div class="completed-day-group">
+      <button type="button" class="completed-day-hdr" onclick="toggleCompletedDay('${group.dayKey}')">
+        <span class="completed-day-chevron">${isOpen ? '▾' : '▸'}</span>
+        <span class="completed-day-label">${dayGroupLabel(group.dayKey)}</span>
+        <span class="completed-count">${group.entries.length}</span>
+      </button>
+      ${isOpen ? `
+        <div class="completed-day-body goal-list">
+          ${group.entries.map(e => e.type === 'goal' ? goalCardHTML(e.item) : completedBoardHTML(e.item)).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+// Archived boards keep their lines visible (read-only) plus a way back —
+// restore returns it to the active Scratchboard list, or delete it for good.
+function completedBoardHTML(b) {
+  const color = b.color || '#c0571a';
+  const lines = (b.lines || []).filter(l => (l.text || '').trim());
+  return `
+    <div class="scratch-board completed-board" style="border-left: 4px solid ${color}">
+      <div class="scratch-board-hdr">
+        <span class="board-color-swatch" style="background:${color};display:inline-block"></span>
+        <span class="board-title-input shared-board-title">${esc(b.title || 'Untitled Board')}</span>
+        <button class="note-del-btn" onclick="toggleBoardCompleted('${b.id}')" title="Restore to your active Scratchboard">↩</button>
+        <button class="note-del-btn" onclick="copyBoardToClipboard('${b.id}')" title="Copy as a title + bullet list">📋</button>
+        <button class="note-del-btn" onclick="deleteScratchBoard('${b.id}')" title="Delete permanently">✕</button>
+      </div>
+      <div class="notes-lines">
+        ${lines.length ? lines.map(l => `<div class="note-line shared"><span class="shared-line-text">${esc(l.text)}</span></div>`).join('') : '<div class="matrix-unrated-empty">No lines on this board</div>'}
+      </div>
     </div>
   `;
 }
@@ -2305,7 +2412,7 @@ function scratchSidebarHTML() {
         <span class="notes-sub">A place for anything — meeting notes, ideas, reminders. Click ➕ on any line to turn it into a goal, named "Board: line text". Boards are private by default — tap 🔒 to share one with your teammates, or 📋 to copy its contents.</span>
       </div>
       <div class="scratch-boards-list">
-        ${scratchBoards.map(scratchBoardHTML).join('')}
+        ${scratchBoards.filter(b => !b.completed).map(scratchBoardHTML).join('')}
       </div>
       <button class="gact" onclick="addScratchBoard()">＋ Add Board</button>
       ${sharedBoardsSectionHTML()}
@@ -2355,6 +2462,7 @@ function scratchBoardHTML(m) {
                oninput="onBoardTitleInput('${m.id}', this.value)"/>
         <button class="board-visibility-btn ${m.public ? 'public' : ''}" onclick="toggleBoardVisibility('${m.id}')"
                 title="${m.public ? 'Public to your teammates — click to make private' : 'Private — click to share with your teammates'}">${m.public ? '🌐' : '🔒'}</button>
+        <button class="note-del-btn" onclick="toggleBoardCompleted('${m.id}')" title="Mark complete — archives it under Completed">✔</button>
         <button class="note-del-btn" onclick="copyBoardToClipboard('${m.id}')" title="Copy as a title + bullet list">📋</button>
         <button class="note-del-btn" onclick="deleteScratchBoard('${m.id}')" title="Delete this board">✕</button>
       </div>
