@@ -328,11 +328,11 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 .app-shell { display: flex; gap: 1.2rem; align-items: flex-start; }
 .board-content { flex: 1; min-width: 0; max-width: 640px; }
 .board-content.wide { max-width: none; }
-/* Matrix view: let the board-content column (now .wide) take its full
-   former width by wrapping the Completed column onto its own row below,
-   instead of it competing for space in the same row as the matrix. */
-.app-shell.matrix-layout { flex-wrap: wrap; }
-.app-shell.matrix-layout .completed-sidebar-col { flex: 1 1 100%; max-width: none; order: 3; }
+/* Matrix view renders the Completed panel inline, right under the matrix
+   itself (see render()), so it's a child of board-content and therefore
+   always exactly as wide as the matrix — the separate right-hand column
+   is hidden in this view instead. */
+.matrix-completed-panel { margin-top: 1rem; }
 
 /* ── TODAY VIEW ── */
 .today-hero { text-align: center; margin-bottom: 1.1rem; }
@@ -1743,18 +1743,22 @@ function render() {
 
   const board = document.getElementById('board');
   document.getElementById('board').classList.toggle('wide', currentView === 'matrix');
+  const inMatrix = currentView === 'matrix';
   // The Matrix view needs the board-content column to take all the room
-  // it can get (that's what .wide is for). Rather than shrink the matrix
-  // to make room for the Completed column beside it, drop the Completed
-  // column down below the matrix instead — still visible, just out of
-  // the row that the matrix needs full width in.
-  document.querySelector('.app-shell').classList.toggle('matrix-layout', currentView === 'matrix');
+  // it can get (that's what .wide is for). Putting the Completed column
+  // in the same flex row — or even wrapped below it at full row width —
+  // still doesn't match the matrix's own width. So in Matrix view, the
+  // Completed panel is rendered *inside* board-content, right under the
+  // matrix, and the separate right-hand column is hidden — that way it's
+  // a literal child of the same box the matrix is in, always exactly as
+  // wide as the matrix, however wide that ends up being.
+  document.querySelector('.completed-sidebar-col').style.display = inMatrix ? 'none' : '';
   const banner = scopeFilter === 'mine' && currentView !== 'matrix'
     ? `<div class="scope-banner">🔒 My Board — every goal you own, across all your teams</div>`
     : '';
   const viewHTML = currentView === 'today' ? renderTodayView(selectedDate, wd)
                   : currentView === 'week'  ? renderWeekView(wd)
-                  : renderMatrixView();
+                  : renderMatrixView() + `<div class="completed-panel matrix-completed-panel">${completedPanelHTML()}</div>`;
 
   // render() runs on every Firestore update — yours, anyone else's, or the
   // automatic rollover check — which otherwise wipes out whatever input
@@ -1769,7 +1773,7 @@ function render() {
 
   board.innerHTML = banner + viewHTML;
   document.getElementById('scratchSidebar').innerHTML = scratchSidebarHTML();
-  document.getElementById('completedPanel').innerHTML = completedPanelHTML();
+  if (!inMatrix) document.getElementById('completedPanel').innerHTML = completedPanelHTML();
   document.querySelectorAll('.notes-lines textarea').forEach(autoGrowNoteLine);
 
   if (restore) {
