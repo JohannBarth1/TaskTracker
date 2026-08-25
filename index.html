@@ -821,6 +821,17 @@ function weekDates() {
   const mon = currentWeekMonday();
   return [0,1,2,3,4].map(i => addDays(mon, i));
 }
+// How many weeks away (relative to weekOffset 0 = this week) a given date's
+// week is. Used so that moving a goal's date always jumps the Day/Week view
+// to wherever it landed — otherwise a date change outside the currently
+// displayed week updates Firestore correctly but looks like nothing happened,
+// since the goal just vanishes from view instead of visibly landing anywhere.
+function weekOffsetForDate(dateStr) {
+  const baseMonday = mondayOf(todayStr());
+  const targetMonday = mondayOf(dateStr);
+  const days = Math.round((parseYmd(targetMonday) - parseYmd(baseMonday)) / 86400000);
+  return Math.round(days / 7);
+}
 
 selectedDate = isWeekend(todayStr()) ? nextWeekday(todayStr()) : todayStr();
 
@@ -2046,6 +2057,14 @@ window.autoSaveGoalDate = async function(id, value) {
   if (value < todayStr()) { showToast('Pick today or a future date — past days are locked'); render(); return; }
   if (isWeekend(value)) { showToast('Pick a weekday — Mon to Fri only'); render(); return; }
   await updateDoc(doc(db, 'goals', id), { date: value, rolled: false });
+  // The write itself always succeeds, but if the new date falls in a
+  // different week than the one currently on screen, the goal just
+  // vanishes from the visible slot with nothing to show it actually
+  // moved — so jump the Day/Week nav to wherever it landed.
+  weekOffset = weekOffsetForDate(value);
+  if (currentView === 'today') selectedDate = value;
+  showToast(`Moved to ${fmtShort(value)}`);
+  render();
 };
 window.toggleGoalVisibility = async function(id) {
   const g = goals.find(x => x.id === id);
