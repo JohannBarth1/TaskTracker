@@ -2270,11 +2270,17 @@ function myFutureGoalsForMatrix() {
   const today = todayStr();
   return goals.filter(g => g.uid === myUid && !g.completed && g.date >= today);
 }
+// Same ordering convention as goalsFor() (Day/Week view) — an explicit
+// `order` field, falling back to creation time for goals that predate it —
+// so each quadrant (and the unrated tray) has a stable, drag-reorderable order.
+function matrixListSort(list) {
+  return list.slice().sort((a, b) => (a.order ?? a.createdAtMs ?? 0) - (b.order ?? b.createdAtMs ?? 0));
+}
 
 function renderMatrixView() {
   const mine = myFutureGoalsForMatrix();
-  const unrated = mine.filter(g => !g.effort || !g.reward);
-  const quad = (effort, reward) => mine.filter(g => g.effort === effort && g.reward === reward);
+  const unrated = matrixListSort(mine.filter(g => !g.effort || !g.reward));
+  const quad = (effort, reward) => matrixListSort(mine.filter(g => g.effort === effort && g.reward === reward));
 
   return `
     <div class="matrix-intro">Every future goal you own, across every team. Drag a card into a quadrant to set its priority — or use Quick Add on the left.</div>
@@ -2570,7 +2576,7 @@ function matrixGoalHTML(g, effort, reward) {
          ondragstart="onGoalDragStart(event,'${g.id}')"
          ondragend="onGoalDragEnd(event)"
          ondragover="event.preventDefault(); event.stopPropagation();"
-         ondrop="onMatrixCardDrop(event,${effort===null?'null':effort},${reward===null?'null':reward})">
+         ondrop="onMatrixCardDrop(event,${effort===null?'null':effort},${reward===null?'null':reward},'${g.id}')">
       <button class="goal-check" onclick="toggleGoal('${g.id}')">${g.completed ? '✓' : ''}</button>
       <div class="goal-body">
         ${goalTextHTML(g)}
@@ -2595,35 +2601,55 @@ function matrixGoalHTML(g, effort, reward) {
 
 function matrixDropDate() { return isWeekend(todayStr()) ? nextWeekday(todayStr()) : todayStr(); }
 
-window.onMatrixCardDrop = async function(e, effort, reward) {
+// Dropping directly onto another card reorders within that quadrant (or
+// the unrated tray, effort/reward both null) — same splice-and-reindex
+// approach as Day view's onGoalCardDrop. Dropping onto a card in a
+// *different* quadrant both reorders there and updates effort/reward.
+window.onMatrixCardDrop = async function(e, effort, reward, targetId) {
   e.preventDefault();
   e.stopPropagation();
   const raw = e.dataTransfer.getData('text/plain');
-  if (!raw) return;
+  if (!raw || raw === targetId) return;
   const noteDrag = parseNoteDrag(raw);
   if (noteDrag) {
-    const ok = await createGoalFromNoteLine(noteDrag.boardId, noteDrag.lineId, { date: matrixDropDate(), slot: 'morning', effort, reward });
+    const list = matrixListSort(myFutureGoalsForMatrix().filter(g => g.effort === effort && g.reward === reward));
+    const ok = await createGoalFromNoteLine(noteDrag.boardId, noteDrag.lineId, { date: matrixDropDate(), slot: 'morning', effort, reward, order: (list[list.length-1]?.order ?? 0) + 1 });
     if (ok) showToast(effort === null ? 'Added to Needs Rating' : 'Added with priority set');
     return;
   }
-  await updateDoc(doc(db, 'goals', raw), { effort, reward });
-  showToast(effort === null ? 'Moved back to unrated' : 'Priority updated');
+  const sourceId = raw;
+  const source = goals.find(x => x.id === sourceId);
+  if (!source) return;
+  const sameQuad = source.effort === effort && source.reward === reward;
+  let list = matrixListSort(myFutureGoalsForMatrix().filter(g => g.effort === effort && g.reward === reward)).filter(x => x.id !== sourceId);
+  const idx = list.findIndex(x => x.id === targetId);
+  list.splice(idx === -1 ? list.length : idx, 0, source);
+  const updates = list.map((g, i) => {
+    const patch = { order: i };
+    if (g.id === sourceId) { patch.effort = effort; patch.reward = reward; }
+    return updateDoc(doc(db, 'goals', g.id), patch);
+  });
+  await Promise.all(updates);
+  showToast(sameQuad ? 'Reordered' : 'Priority updated');
 };
 
 window.onMatrixDragOver = function(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); };
 window.onMatrixDragLeave = function(e) { e.currentTarget.classList.remove('drag-over'); };
+// Dropping on empty quadrant space (not on a specific card) appends to the
+// end of that quadrant's order instead of leaving order unset.
 window.onMatrixDrop = async function(e, effort, reward) {
   e.preventDefault();
   e.currentTarget.classList.remove('drag-over');
   const raw = e.dataTransfer.getData('text/plain');
   if (!raw) return;
+  const list = matrixListSort(myFutureGoalsForMatrix().filter(g => g.effort === effort && g.reward === reward));
   const noteDrag = parseNoteDrag(raw);
   if (noteDrag) {
-    const ok = await createGoalFromNoteLine(noteDrag.boardId, noteDrag.lineId, { date: matrixDropDate(), slot: 'morning', effort, reward });
+    const ok = await createGoalFromNoteLine(noteDrag.boardId, noteDrag.lineId, { date: matrixDropDate(), slot: 'morning', effort, reward, order: (list[list.length-1]?.order ?? 0) + 1 });
     if (ok) showToast('Added with priority set');
     return;
   }
-  await updateDoc(doc(db, 'goals', raw), { effort, reward });
+  await updateDoc(doc(db, 'goals', raw), { effort, reward, order: (list[list.length-1]?.order ?? 0) + 1 });
   showToast('Priority updated');
 };
 window.onMatrixTrayDrop = async function(e) {
@@ -2631,13 +2657,14 @@ window.onMatrixTrayDrop = async function(e) {
   e.currentTarget.classList.remove('drag-over');
   const raw = e.dataTransfer.getData('text/plain');
   if (!raw) return;
+  const list = matrixListSort(myFutureGoalsForMatrix().filter(g => !g.effort || !g.reward));
   const noteDrag = parseNoteDrag(raw);
   if (noteDrag) {
-    const ok = await createGoalFromNoteLine(noteDrag.boardId, noteDrag.lineId, { date: matrixDropDate(), slot: 'morning', effort: null, reward: null });
+    const ok = await createGoalFromNoteLine(noteDrag.boardId, noteDrag.lineId, { date: matrixDropDate(), slot: 'morning', effort: null, reward: null, order: (list[list.length-1]?.order ?? 0) + 1 });
     if (ok) showToast('Added to Needs Rating');
     return;
   }
-  await updateDoc(doc(db, 'goals', raw), { effort: null, reward: null });
+  await updateDoc(doc(db, 'goals', raw), { effort: null, reward: null, order: (list[list.length-1]?.order ?? 0) + 1 });
   showToast('Moved back to unrated');
 };
 
