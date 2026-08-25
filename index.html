@@ -1738,6 +1738,11 @@ function render() {
 
   const board = document.getElementById('board');
   document.getElementById('board').classList.toggle('wide', currentView === 'matrix');
+  // The Matrix view needs all the room the board-content column can give it
+  // (that's what .wide is for) — the Completed column would eat straight
+  // into that space if left in the flex row, so it steps out of the way
+  // instead of shrinking the matrix back down.
+  document.querySelector('.completed-sidebar-col').style.display = currentView === 'matrix' ? 'none' : '';
   const banner = scopeFilter === 'mine' && currentView !== 'matrix'
     ? `<div class="scope-banner">🔒 My Board — every goal you own, across all your teams</div>`
     : '';
