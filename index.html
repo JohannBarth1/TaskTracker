@@ -1758,7 +1758,7 @@ function render() {
     : '';
   const viewHTML = currentView === 'today' ? renderTodayView(selectedDate, wd)
                   : currentView === 'week'  ? renderWeekView(wd)
-                  : renderMatrixView() + `<div class="completed-panel matrix-completed-panel">${completedPanelHTML()}</div>`;
+                  : renderMatrixView();
 
   // render() runs on every Firestore update — yours, anyone else's, or the
   // automatic rollover check — which otherwise wipes out whatever input
@@ -2246,6 +2246,7 @@ function renderMatrixView() {
           ${matrixQuadHTML('q-hi-lo', 'Back of the Warehouse', 'High effort · Low reward', quad(2,1))}
         </div>
         <div class="matrix-axis-x"><span>Effort →</span></div>
+        <div class="completed-panel matrix-completed-panel">${completedPanelHTML()}</div>
       </div>
     </div>
   `;
