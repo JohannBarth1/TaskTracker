@@ -497,18 +497,16 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   padding: .8rem .9rem; display: flex; flex-direction: column; gap: .7rem;
 }
 
-/* ── COMPLETED TASKS PANEL — sits on the right, mirrors the Scratchboard
-   column on the left. Renders real goal-card tiles (same component as
-   every other list), so it's editable and draggable just like the rest
-   of the app — checkbox, tags, roll/delete, drag out into a day/slot. ── */
-.completed-sidebar-col {
-  flex: 0 0 340px; min-width: 260px; max-width: 380px;
-  display: flex; flex-direction: column; gap: .8rem;
-}
+/* ── COMPLETED TASKS PANEL — sits underneath whatever view is on screen
+   (Day/Week/Matrix), never off to the side. Renders real goal-card tiles
+   (same component as every other list), so it's editable and draggable
+   just like the rest of the app — checkbox, tags, roll/delete, drag out
+   into a day/slot. ── */
 .completed-panel {
   border: 1px solid var(--border); border-radius: 8px; background: var(--warm-white);
   padding: .8rem .9rem; display: flex; flex-direction: column; gap: .5rem;
 }
+.board-completed-panel { margin-top: 1.2rem; }
 .completed-count { font-size: .58rem; background: var(--success-pale); color: var(--success); border-radius: 10px; padding: 1px 7px; font-weight: 700; vertical-align: middle; margin-left: .3rem; }
 .completed-groups { display: flex; flex-direction: column; gap: .4rem; max-height: 70vh; overflow-y: auto; }
 .completed-empty { font-size: .72rem; color: var(--muted); font-style: italic; }
@@ -625,7 +623,6 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   .matrix-grid { grid-template-columns: 1fr; grid-template-rows: none; min-height: auto; }
   .app-shell { flex-direction: column; }
   .scratch-sidebar-col { max-width: none; min-width: 0; width: 100%; flex: 1 1 auto; }
-  .completed-sidebar-col { max-width: none; min-width: 0; width: 100%; flex: 1 1 auto; }
 }
 
 @media (max-width: 600px) {
@@ -743,9 +740,6 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
       <div class="scratch-sidebar" id="scratchSidebar"></div>
     </div>
     <div id="board" class="board-content"></div>
-    <div class="completed-sidebar-col">
-      <div class="completed-panel" id="completedPanel"></div>
-    </div>
   </div>
 </main>
 
@@ -1788,20 +1782,16 @@ function render() {
   const board = document.getElementById('board');
   document.getElementById('board').classList.toggle('wide', currentView === 'matrix');
   const inMatrix = currentView === 'matrix';
-  // The Matrix view needs the board-content column to take all the room
-  // it can get (that's what .wide is for). Putting the Completed column
-  // in the same flex row — or even wrapped below it at full row width —
-  // still doesn't match the matrix's own width. So in Matrix view, the
-  // Completed panel is rendered *inside* board-content, right under the
-  // matrix, and the separate right-hand column is hidden — that way it's
-  // a literal child of the same box the matrix is in, always exactly as
-  // wide as the matrix, however wide that ends up being.
-  document.querySelector('.completed-sidebar-col').style.display = inMatrix ? 'none' : '';
   const banner = scopeFilter === 'mine' && currentView !== 'matrix'
     ? `<div class="scope-banner">🔒 My Board — every goal you own, across all your teams</div>`
     : '';
-  const viewHTML = currentView === 'today' ? renderTodayView(selectedDate, wd)
-                  : currentView === 'week'  ? renderWeekView(wd)
+  // The Completed panel always lives underneath whatever view is showing,
+  // as a child of board-content, so it's never off to the side and always
+  // matches that view's own width. Matrix already nests it inside
+  // matrix-main (to line up with the quadrant boxes specifically), so it
+  // isn't added again here for that view.
+  const viewHTML = currentView === 'today' ? renderTodayView(selectedDate, wd) + completedPanelBlockHTML()
+                  : currentView === 'week'  ? renderWeekView(wd) + completedPanelBlockHTML()
                   : renderMatrixView();
 
   // render() runs on every Firestore update — yours, anyone else's, or the
@@ -1817,7 +1807,6 @@ function render() {
 
   board.innerHTML = banner + viewHTML;
   document.getElementById('scratchSidebar').innerHTML = scratchSidebarHTML();
-  if (!inMatrix) document.getElementById('completedPanel').innerHTML = completedPanelHTML();
   document.querySelectorAll('.notes-lines textarea').forEach(autoGrowNoteLine);
 
   if (restore) {
@@ -2358,6 +2347,12 @@ window.toggleCompletedDay = function(dayKey) {
   else completedExpandedDays.add(dayKey);
   render();
 };
+
+// Day/Week view wrapper — sits underneath the goal list itself (inside
+// board-content), matching its width, instead of off in a side column.
+function completedPanelBlockHTML() {
+  return `<div class="completed-panel board-completed-panel">${completedPanelHTML()}</div>`;
+}
 
 function completedPanelHTML() {
   const groups = groupCompletedByDay(completedEntries());
