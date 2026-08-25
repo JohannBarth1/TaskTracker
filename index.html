@@ -492,19 +492,20 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   padding: .8rem .9rem; display: flex; flex-direction: column; gap: .7rem;
 }
 
-/* ── COMPLETED TASKS PANEL (read-only reference list) ── */
+/* ── COMPLETED TASKS PANEL — sits on the right, mirrors the Scratchboard
+   column on the left. Renders real goal-card tiles (same component as
+   every other list), so it's editable and draggable just like the rest
+   of the app — checkbox, tags, roll/delete, drag out into a day/slot. ── */
+.completed-sidebar-col {
+  flex: 0 0 340px; min-width: 260px; max-width: 380px;
+  display: flex; flex-direction: column; gap: .8rem;
+}
 .completed-panel {
   border: 1px solid var(--border); border-radius: 8px; background: var(--warm-white);
   padding: .8rem .9rem; display: flex; flex-direction: column; gap: .5rem;
 }
 .completed-count { font-size: .58rem; background: var(--success-pale); color: var(--success); border-radius: 10px; padding: 1px 7px; font-weight: 700; vertical-align: middle; margin-left: .3rem; }
-.completed-list { display: flex; flex-direction: column; gap: .3rem; max-height: 320px; overflow-y: auto; }
-.completed-item {
-  background: var(--panel); border-radius: 5px; padding: .35rem .55rem;
-  display: flex; align-items: baseline; justify-content: space-between; gap: .5rem;
-}
-.completed-item-text { font-size: .76rem; color: var(--muted); line-height: 1.35; text-decoration: line-through; word-break: break-word; flex: 1; min-width: 0; }
-.completed-item-date { font-size: .58rem; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
+.completed-list { display: flex; flex-direction: column; gap: .5rem; max-height: 70vh; overflow-y: auto; }
 .completed-empty { font-size: .72rem; color: var(--muted); font-style: italic; }
 .board-color-swatch {
   width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border);
@@ -607,6 +608,7 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   .matrix-grid { grid-template-columns: 1fr; grid-template-rows: none; min-height: auto; }
   .app-shell { flex-direction: column; }
   .scratch-sidebar-col { max-width: none; min-width: 0; width: 100%; flex: 1 1 auto; }
+  .completed-sidebar-col { max-width: none; min-width: 0; width: 100%; flex: 1 1 auto; }
 }
 
 @media (max-width: 600px) {
@@ -722,9 +724,11 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
         </div>
       </div>
       <div class="scratch-sidebar" id="scratchSidebar"></div>
-      <div class="completed-panel" id="completedPanel"></div>
     </div>
     <div id="board" class="board-content"></div>
+    <div class="completed-sidebar-col">
+      <div class="completed-panel" id="completedPanel"></div>
+    </div>
   </div>
 </main>
 
@@ -2235,15 +2239,6 @@ function renderMatrixView() {
 // A plain reference list of every goal you've ever completed, newest
 // first — not scoped to a team/date/view, just "everything I've finished".
 // Read-only; nothing here is clickable or editable.
-function fmtCompletedWhen(g) {
-  if (g.completedAt && typeof g.completedAt.toDate === 'function') {
-    const d = g.completedAt.toDate();
-    return `${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}`;
-  }
-  // Goals completed before this field existed don't have a completedAt —
-  // fall back to the date they were scheduled on so they still show a date.
-  return g.date ? fmtShort(g.date) : '';
-}
 function completedGoalsList() {
   const myUid = currentUser && currentUser.uid;
   return goals
@@ -2259,15 +2254,9 @@ function completedPanelHTML() {
   return `
     <div class="notes-hdr">
       <span class="notes-title">✅ Completed <span class="completed-count">${list.length}</span></span>
-      <span class="notes-sub">Everything you've checked off, newest first — just for reference.</span>
     </div>
-    <div class="completed-list">
-      ${list.length ? list.map(g => `
-        <div class="completed-item">
-          <span class="completed-item-text">${esc(g.text)}</span>
-          <span class="completed-item-date">${fmtCompletedWhen(g)}</span>
-        </div>
-      `).join('') : '<div class="completed-empty">Nothing completed yet</div>'}
+    <div class="completed-list goal-list">
+      ${list.length ? list.map(g => goalCardHTML(g)).join('') : '<div class="completed-empty">Nothing completed yet</div>'}
     </div>
   `;
 }
