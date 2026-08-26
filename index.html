@@ -657,7 +657,7 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 <div id="loginScreen">
   <div style="display:flex;flex-direction:column;align-items:center;gap:.3rem">
     <div class="login-title">Studio Board</div>
-    <div class="login-sub">Daily Room Planning</div>
+    <div class="login-sub">Dailing Planning the smart way</div>
   </div>
   <div class="login-divider"></div>
   <div class="login-prompt">Sign in to continue</div>
@@ -926,7 +926,7 @@ async function ensureDefaultTeamMembership() {
     const snap = await getDoc(ref);
     if (!snap.exists()) {
       await setDoc(ref, {
-        name: 'Room Planning Team',
+        name: 'Default Team',
         description: 'The original shared studio board',
         memberUids: [currentUser.uid],
         ownerUid: currentUser.uid,
@@ -1132,11 +1132,11 @@ function myTeamEntries() {
 }
 function teamName(teamId) {
   const id = teamId || DEFAULT_TEAM_ID;
-  return (teams[id] && teams[id].name) || 'Room Planning Team';
+  return (teams[id] && teams[id].name) || 'Default Team';
 }
 function renderTeamBar() {
   const t = teams[currentTeamId];
-  document.getElementById('teamNameLabel').textContent = t ? t.name : 'Room Planning Team';
+  document.getElementById('teamNameLabel').textContent = t ? t.name : 'Default Team';
   document.getElementById('teamDescLabel').textContent = t && t.description ? t.description : '';
   const memberUids = (t && t.memberUids) || [];
   const stripEl = document.getElementById('teamMembersStrip');
