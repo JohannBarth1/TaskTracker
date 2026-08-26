@@ -458,11 +458,7 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 }
 
 /* ── PRIORITY MATRIX (My Board only) ── */
-.matrix-intro { text-align: center; font-size: .68rem; color: var(--muted); font-style: italic; margin-bottom: 1rem; }
 .matrix-unrated { margin-bottom: 1.1rem; }
-.matrix-unrated-hdr { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
-.matrix-unrated-title { font-family: 'Playfair Display', serif; font-size: .9rem; color: var(--brown); }
-.matrix-unrated-line { flex: 1; height: 1px; background: var(--border); }
 .matrix-unrated-tray {
   display: flex; gap: .5rem; overflow-x: auto; padding-bottom: .3rem;
   border-radius: 6px; transition: background .12s, outline .12s; min-height: 40px;
@@ -2291,17 +2287,13 @@ function renderMatrixView() {
   const quad = (effort, reward) => matrixListSort(mine.filter(g => g.effort === effort && g.reward === reward));
 
   return `
-    <div class="matrix-intro">Every future goal you own, across every team. Drag a card into a quadrant to set its priority — or use Quick Add on the left.</div>
+    ${unrated.length ? `
     <div class="matrix-unrated">
-      <div class="matrix-unrated-hdr">
-        <span class="matrix-unrated-title">Needs Rating (${unrated.length})</span>
-        <div class="matrix-unrated-line"></div>
-      </div>
       <div class="matrix-unrated-tray"
            ondragover="onMatrixDragOver(event)" ondragleave="onMatrixDragLeave(event)" ondrop="onMatrixTrayDrop(event)">
-        ${unrated.length ? unrated.map(g => matrixGoalHTML(g, null, null)).join('') : `<div class="matrix-unrated-empty">Nothing waiting to be rated</div>`}
+        ${unrated.map(g => matrixGoalHTML(g, null, null)).join('')}
       </div>
-    </div>
+    </div>` : ''}
     <div class="matrix-wrap">
       <div class="matrix-axis-y"><span class="axis-arrow">↑</span><span class="axis-word">Reward</span></div>
       <div class="matrix-main">
