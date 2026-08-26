@@ -1,7 +1,7 @@
 {
-  "name": "Studio Board — Daily Planning",
+  "name": "Studio Board",
   "short_name": "Studio Board",
-  "description": "Daily room planning and task board.",
+  "description": "Daily planning and task board.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
