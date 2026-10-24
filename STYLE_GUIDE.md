@@ -8,30 +8,40 @@ should look like it was designed alongside the rest, not bolted on.
 
 ```
 .app-topbar (position: sticky, top: 0)       ← one sticky unit, nothing else is sticky
-  header                                      dark chrome: brand, who's online, account
-  .team-bar                                   team picker (<select>) + Board Settings
-  .toolbar                                    date nav + Day/Week/Matrix switch
+  header                                      ONE row: brand + view switch (left),
+                                               who's online + account (right)
+  .toolbar                                    date nav only
 main.main
   .app-shell  (flex row, stacks to column at 1100px, .board-content first when stacked)
     .scratch-sidebar-col  (380px)             Notes Dump card + Scratchboard boards
     .board-content        (flex: 1)           Day / Week / Matrix — the primary content
 ```
 
-There is no permanent "Teams" panel — switching and managing teams both
-happen through the one `#teamSelect` dropdown + its adjacent ⚙ button in
-the team-bar. Don't resurrect a standing list-of-teams column; if teams
+There is no standalone team-bar and no permanent "Teams" panel. The team
+picker (`#teamSelect` + its ⚙ Board Settings button) lives *inside the
+view*, as the header of the Team goals column in Day/Week (see
+`teamColHdrHTML()`) — it is view content, not global chrome, because it
+only means something once you're looking at a team-scoped list. Matrix
+view has no team column, so it has no team picker either; that's
+intentional, not a gap to fill. Don't pull the picker back up into the
+topbar, and don't resurrect a standing list-of-teams column — if teams
 need more visibility than a dropdown gives, improve the dropdown (e.g.
 grouping, search) rather than adding a second place to see them.
 
-**Rule: `.app-topbar` is for truly global chrome only — header, team-bar,
-toolbar — nothing else.** It's easy to assume "pinned" means "goes in the
-topbar," but a feature that's *view content* (Notes Dump, Quick Add before
-it) belongs in `.app-shell` instead, even if you want it visible on every
-view — every view already shares `.scratch-sidebar-col`, so putting it
-there gets you "visible everywhere" for free without growing the sticky
-bar. (The Notes Dump bug that prompted this guide was exactly this
-mistake: a content feature got placed in the topbar, ended up above the
-header, and looked broken.)
+**Rule: `.app-topbar` is for truly global chrome only — header, toolbar —
+nothing else.** It's easy to assume "pinned" means "goes in the topbar,"
+but a feature that's tied to specific view content (Notes Dump before it
+moved, the team picker, Quick Add before it existed) belongs where that
+content lives, even if you want it visible on every view — every Day/Week
+view already shares the same column structure, so putting it there gets
+you "visible everywhere relevant" for free without growing the sticky bar
+or showing it somewhere it doesn't apply (like Matrix). The Notes Dump bug
+that prompted this guide was exactly this mistake in the other direction:
+a content feature got placed in the topbar, ended up above the header, and
+looked broken. The header itself holds only things that are true
+regardless of view or team: the brand, the view switch, and account-level
+status (who's online, your avatar) — nothing that depends on which team or
+which list you're looking at.
 
 **Rule: when `.app-shell` stacks (narrow screens), `.board-content` must
 render first.** It's the primary content; the sidebars are supporting
@@ -58,7 +68,7 @@ to it.
 |---|---|
 | `--cream` | page background |
 | `--warm-white` | card/panel background (sits on top of cream) |
-| `--panel` | secondary/recessed background — bars (team-bar, toolbar), input wells |
+| `--panel` | secondary/recessed background — bars (toolbar), input wells |
 | `--ink` | header background, primary text, toast background |
 | `--brown` | headings and labels set in Playfair Display |
 | `--rust` | primary action color (Add buttons, Notes Dump accent, today-jump) |
@@ -102,16 +112,23 @@ that ground via the toolbar + the hero's prev/next arrows. Before adding a
 new persistent control, check whether an existing one already does the
 job with one more click, rather than giving it its own permanent row.
 
+**Rule: the same applies to instructional copy.** Explanatory sentences
+like "Drag a goal to reorder it…" or "Every future goal you own…" got
+added early and then removed once the interactions became self-evident
+from the UI itself (drag handles, hover states, tooltips). Don't add a
+line of body text to explain how to use a control — if it needs that much
+explaining, fix the control; a `title=""` tooltip is almost always enough.
+
 ## 5. Component patterns — reuse these, don't reinvent
 
 **Panel** (`.scratch-sidebar`, `.teams-panel`, `.completed-panel`): 1px
 `--border`, `border-radius: 8px`, `--warm-white` background, `.6–.9rem`
 padding, flex column with `.5–.7rem` gap.
 
-**Bar** (`.team-bar`, `.toolbar`): full-width, flex row, `--panel`
-background, `border-bottom: 1px solid var(--border)`, `0 1rem` horizontal
-padding. These live in `.app-topbar` and never look like floating cards —
-no border-radius, no margin, no centered max-width.
+**Bar** (`.toolbar`): full-width, flex row, `--panel` background,
+`border-bottom: 1px solid var(--border)`, `0 1rem` horizontal padding.
+Lives in `.app-topbar` and never looks like a floating card — no
+border-radius, no margin, no centered max-width.
 
 **Dashed "inbox" card** (`.notes-dump-card`): the one exception to the
 solid-border panel look — `border: 1px dashed var(--rust)` on a warm tint
@@ -132,7 +149,12 @@ custom dropdown/menu — less code, free keyboard/accessibility support, and
 nothing to position or click-outside-to-close. Reserve a custom popover
 menu for cases where options need rich content (avatars, descriptions)
 that a `<select>` can't render; a plain "pick one" choice like switching
-teams doesn't need that.
+teams doesn't need that. Note that `teamColHdrHTML()` rebuilds this
+`<select>` from scratch on every render — it's embedded directly in the
+Day/Week view templates (not a persistent DOM node populated
+after the fact), so there's no separate "refresh the picker" step to
+remember: switching teams or the team list changing just calls `render()`
+and the select comes out right.
 
 **Pill button** (`.gact`, `.vpill`, `.pill-toggle`, `.btn`): fully rounded
 (`border-radius: 999px`), 1px border, transparent/warm-white background,
@@ -182,9 +204,10 @@ elsewhere (team name, member list, description, etc.), decide which panel
 rather than showing it twice. Current ownership:
 
 - **Team identity, switching, and management** → the `#teamSelect` picker
-  + ⚙ button in `.team-bar`. There's no separate team-identity display
-  anywhere else — a plain label repeating the selected team's name next to
-  the dropdown would just be restating what the dropdown already shows.
+  + ⚙ button, built into the Team goals column header in Day/Week views.
+  There's no separate team-identity display anywhere else — a plain label
+  repeating the selected team's name next to the dropdown would just be
+  restating what the dropdown already shows.
 - **"Who's online right now"** → the presence list in the header, next to
   the account avatar.
 - **"Capture this before I forget, sort it later"** → Notes Dump (a loose
@@ -226,9 +249,11 @@ low-friction, not distracting.
 
 ## 9. Checklist before shipping a new UI piece
 
-1. Does it belong in `.app-topbar` (truly global chrome) or `.app-shell`
-   (view content, even if "always visible")? See the rule in §1 — when in
-   doubt, it's `.app-shell`.
+1. Does it belong in `.app-topbar` (truly global chrome, true regardless
+   of view/team) or inside the relevant view content (even if "always
+   visible" across every Day/Week render, like the team picker)? See the
+   rule in §1 — when in doubt, it belongs with the content it's about, not
+   in the topbar.
 2. Does it reuse an existing panel/bar/card/button/badge pattern from §5?
    If you're writing new CSS for a border+radius+padding combo, check
    it's not already one of these first.
