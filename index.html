@@ -24,7 +24,6 @@
   --header-h:     52px;
   --team-h:       36px;
   --toolbar-h:    50px;
-  --presence-h:   30px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
@@ -124,8 +123,6 @@ header {
   min-width: 0; flex: 1 1 auto;
 }
 .team-name-label { font-family: 'Playfair Display', serif; font-style: italic; font-size: .85rem; color: var(--brown); flex-shrink: 0; }
-.team-desc { font-size: .68rem; color: var(--muted); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; flex-shrink: 1; min-width: 0; }
-.team-members-strip { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
 .member-more { font-size: .58rem; color: var(--muted); font-weight: 700; background: var(--light-brown); border-radius: 8px; padding: 1px 5px; }
 
 /* ── PRESENCE (now grouped into the team bar) ── */
@@ -179,21 +176,22 @@ header {
 .team-row-desc { font-size: .62rem; color: var(--muted); font-style: italic; margin-top: .3rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .teams-panel-actions { display: flex; flex-direction: column; gap: .35rem; }
 
-/* ── NOTES DUMP (pinned quick-capture bar, top of every view) ── */
-.notes-dump-bar { padding: .5rem 1.4rem 0; }
-.notes-dump-inner {
-  border: 1px solid var(--border); border-radius: 8px; background: var(--warm-white);
-  padding: .5rem .7rem; display: flex; flex-direction: column; gap: .4rem; max-width: 900px; margin: 0 auto;
+/* ── NOTES DUMP (pinned quick-capture bar, top of every view) ──
+   Same "bar in the sticky stack" treatment as team-bar/toolbar below it
+   (full-width, panel background, border-bottom) — not a floating card —
+   so it reads as one more row of app chrome, not a disconnected widget. */
+.notes-dump-bar {
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  padding: 0 1rem;
 }
-.notes-dump-inner.collapsed { padding: .2rem .7rem; }
+.notes-dump-inner { padding: .4rem 0; display: flex; flex-direction: column; gap: .5rem; }
 .notes-dump-hdr {
-  width: 100%; display: flex; align-items: center; justify-content: space-between;
-  background: none; border: none; cursor: pointer; padding: .1rem 0;
-  font-family: 'Playfair Display', serif; font-style: italic; font-size: .88rem; color: var(--brown);
+  width: 100%; display: flex; align-items: center; gap: .5rem;
+  background: none; border: none; cursor: pointer; padding: .15rem 0;
+  font-family: 'Playfair Display', serif; font-style: italic; font-size: .85rem; color: var(--brown);
 }
-.notes-dump-hdr.collapsed { justify-content: center; gap: .4rem; font-size: .8rem; }
-.notes-dump-chevron { font-size: .65rem; color: var(--muted); }
-.notes-dump-lines { display: flex; flex-direction: column; gap: .3rem; max-height: 220px; overflow-y: auto; }
+.notes-dump-chevron { font-size: .6rem; color: var(--muted); margin-left: auto; }
+.notes-dump-lines { display: flex; flex-direction: column; gap: .3rem; max-height: 220px; overflow-y: auto; padding-bottom: .2rem; }
 
 /* Inline dropdowns used inside the goal edit form (Owner / Team pickers). */
 .inline-dd-wrap { position: relative; min-width: 0; display: inline-flex; }
@@ -337,9 +335,22 @@ header {
 }
 .goals-columns-week { align-items: stretch; }
 .goals-columns-week .goals-col { min-width: 0; overflow-x: auto; }
+/* This is the same breakpoint as the outer 3-pane app-shell below it (on
+   purpose — the outer layout should give up its columns at the same point
+   the content inside it does, not later, or you get a narrow middle range
+   where the inner Day/Week columns have already stacked but the outer
+   Scratchboard/Teams columns are still awkwardly squeezing the content
+   between them). */
 @media (max-width: 1100px) {
   .goals-columns { flex-direction: column; }
   .goals-columns-week .goals-col { overflow-x: visible; }
+  .app-shell { flex-direction: column; }
+  .scratch-sidebar-col, .teams-sidebar-col { max-width: none; min-width: 0; width: 100%; flex: 1 1 auto; }
+  .teams-list { max-height: none; }
+  /* The board itself (Day/Week/Matrix) is the primary content — when the
+     three panes stack, it should be the first thing you see, not buried
+     below the Scratchboard sidebar just because that's its source order. */
+  .board-content { order: -1; }
 }
 .board-content.wide { max-width: none; }
 /* Matrix view renders the Completed panel inline, right under the matrix
@@ -647,10 +658,6 @@ header {
   .matrix-wrap { flex-direction: column; }
   .matrix-axis-y { display: none; }
   .matrix-grid { grid-template-columns: 1fr; grid-template-rows: none; min-height: auto; }
-  .app-shell { flex-direction: column; }
-  .scratch-sidebar-col { max-width: none; min-width: 0; width: 100%; flex: 1 1 auto; }
-  .teams-sidebar-col { max-width: none; min-width: 0; width: 100%; flex: 1 1 auto; }
-  .teams-list { max-height: none; }
 }
 
 @media (max-width: 600px) {
@@ -684,9 +691,6 @@ header {
 
 <!-- Everything below sticks together as one unit -->
 <div class="app-topbar">
-<!-- Notes Dump: a titleless quick-capture scratchboard, pinned above
-     everything so it's reachable from every view. -->
-<div class="notes-dump-bar" id="notesDumpBar"></div>
 <!-- Header -->
 <header>
   <div class="brand">
@@ -706,13 +710,19 @@ header {
   </div>
 </header>
 
-<!-- Team bar — now just a passive "currently selected team" glance; actual
-     switching/managing happens in the collapsible Teams column on the right. -->
+<!-- Notes Dump: a titleless quick-capture scratchboard, pinned below the
+     header (above team-bar/toolbar) so it's reachable from every view
+     without scrolling. Styled as another bar in the same sticky stack,
+     not a floating card, so it reads as part of this chrome. -->
+<div class="notes-dump-bar" id="notesDumpBar"></div>
+
+<!-- Team bar — just the current team's name (a breadcrumb-style label) plus
+     who's online right now. Description and member roster already live on
+     this team's row in the Teams column (right side), so they're not
+     repeated here — this bar's one job is "where am I, who else is here". -->
 <div class="team-bar">
   <div class="team-info-group">
     <span id="teamNameLabel" class="team-name-label">Loading…</span>
-    <div class="team-members-strip" id="teamMembersStrip"></div>
-    <div class="team-desc" id="teamDescLabel"></div>
   </div>
   <div class="presence-group">
     <span class="presence-label">In the app</span>
@@ -889,7 +899,10 @@ onAuthStateChanged(auth, async user => {
     currentTeamId = localStorage.getItem(`sb_team_${user.uid}`) || DEFAULT_TEAM_ID;
     currentView = localStorage.getItem(`sb_view_${user.uid}`) || 'today';
     teamsColumnCollapsed = localStorage.getItem(`sb_teamscol_${user.uid}`) === '1';
-    notesDumpCollapsed = localStorage.getItem(`sb_notesdump_${user.uid}`) === '1';
+    // Collapsed by default for anyone who hasn't touched this toggle yet —
+    // it's a pinned bar on every view, so it shouldn't default to taking
+    // up space until someone actually wants to use it.
+    notesDumpCollapsed = localStorage.getItem(`sb_notesdump_${user.uid}`) !== '0';
     document.getElementById('viewTodayBtn').classList.toggle('active', currentView === 'today');
     document.getElementById('viewWeekBtn').classList.toggle('active', currentView === 'week');
     document.getElementById('viewMatrixBtn').classList.toggle('active', currentView === 'matrix');
@@ -1126,11 +1139,6 @@ function teamName(teamId) {
 function renderTeamBar() {
   const t = teams[currentTeamId];
   document.getElementById('teamNameLabel').textContent = t ? t.name : 'Room Planning Team';
-  document.getElementById('teamDescLabel').textContent = t && t.description ? t.description : '';
-  const memberUids = (t && t.memberUids) || [];
-  const stripEl = document.getElementById('teamMembersStrip');
-  stripEl.innerHTML = memberUids.slice(0, 6).map(uid => `<span title="${esc(userName(uid))}">${avatarHTML(uid)}</span>`).join('')
-    + (memberUids.length > 6 ? `<span class="member-more">+${memberUids.length - 6}</span>` : '');
   renderTeamsPanel();
 }
 
@@ -1198,22 +1206,29 @@ window.manageTeam = function(id) {
 };
 
 // ── NOTES DUMP (pinned quick-capture bar) — a titleless scratchboard that
-// sits above the team-bar/toolbar on every view, so it's always one click
-// away. In Matrix view it also carries the "Needs Rating" tray, since both
-// are "stuff that hasn't been sorted yet" — collapsible and remembered
-// per-user, same pattern as the Teams column. ──
-let notesDumpCollapsed = false;
+// sits below the header, above team-bar/toolbar, on every view, so it's
+// always one click away. Uses 📥 (not 🗒️) so it reads as a distinct
+// "inbox, sort later" concept from the Scratchboard's named boards. In
+// Matrix view it also carries the "Needs Rating" tray, since both are
+// "stuff that hasn't been sorted yet" — collapsible and remembered
+// per-user, same pattern as the Teams column, and collapsed by default
+// so it doesn't compete with Quick Add for attention on every view. ──
+let notesDumpCollapsed = true;
 window.toggleNotesDump = function() {
   notesDumpCollapsed = !notesDumpCollapsed;
   if (currentUser) localStorage.setItem(`sb_notesdump_${currentUser.uid}`, notesDumpCollapsed ? '1' : '0');
   document.getElementById('notesDumpBar').innerHTML = notesDumpPanelHTML(currentView === 'matrix');
+  document.querySelectorAll('.notes-dump-lines textarea').forEach(autoGrowNoteLine);
 };
 function notesDumpPanelHTML(inMatrix) {
+  const lineCount = notesDumpBoard.lines.filter(l => (l.text || '').trim() && !l.checked && !l.converted).length;
   if (notesDumpCollapsed) {
     return `
-      <div class="notes-dump-inner collapsed">
-        <button class="notes-dump-hdr collapsed" onclick="toggleNotesDump()" title="Expand Notes Dump">
-          <span class="notes-dump-title">🗒️ Notes Dump</span><span class="notes-dump-chevron">▾</span>
+      <div class="notes-dump-inner">
+        <button class="notes-dump-hdr" onclick="toggleNotesDump()" title="Expand Notes Dump">
+          <span>📥 Notes Dump</span>
+          ${lineCount ? `<span class="slot-count">${lineCount}</span>` : ''}
+          <span class="notes-dump-chevron">▾</span>
         </button>
       </div>
     `;
@@ -1221,7 +1236,7 @@ function notesDumpPanelHTML(inMatrix) {
   return `
     <div class="notes-dump-inner">
       <button class="notes-dump-hdr" onclick="toggleNotesDump()" title="Collapse Notes Dump">
-        <span class="notes-dump-title">🗒️ Notes Dump — quick capture, sort it later</span><span class="notes-dump-chevron">▴</span>
+        <span>📥 Notes Dump — quick capture, sort it later</span><span class="notes-dump-chevron">▴</span>
       </button>
       <div class="notes-dump-lines">
         ${notesDumpBoard.lines.map(l => noteLineHTML(NOTES_DUMP_ID, l)).join('')}
