@@ -3,22 +3,9 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-<title>Studio Board</title>
+<title>Studio Board — Daily Planning</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
-
-<!-- PWA: manifest + icons + standalone-app hints -->
-<link rel="manifest" href="./manifest.json">
-<link rel="icon" href="./favicon.ico" sizes="any">
-<meta name="theme-color" content="#1a1208">
-<link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png">
-<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
-<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Studio Board">
-<meta name="mobile-web-app-capable" content="yes">
-
 <style>
 :root {
   --cream:        #faf6f0;
@@ -41,12 +28,6 @@
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
-/* Stops the mobile pull-to-refresh gesture (swiping down at the top of
-   the page) from triggering a full browser reload — that gesture is the
-   most common cause of an "unwanted refresh" on Android/iOS. This only
-   blocks the rubber-band/refresh overscroll; normal scrolling and drag
-   gestures inside the app are unaffected. */
-html { overscroll-behavior-y: contain; }
 body {
   font-family: 'Lato', sans-serif;
   background: var(--cream);
@@ -142,15 +123,7 @@ header {
   display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
   min-width: 0; flex: 1 1 auto;
 }
-.team-switcher { position: relative; flex-shrink: 0; }
-.team-switch-btn {
-  display: flex; align-items: center; gap: .35rem;
-  background: var(--warm-white); border: 1px solid var(--border); border-radius: 20px;
-  padding: .3rem .7rem; cursor: pointer; font-family: 'Playfair Display', serif;
-  font-style: italic; font-size: .85rem; color: var(--brown); transition: background .15s;
-}
-.team-switch-btn:hover { background: var(--light-brown); }
-.team-chevron { font-size: .6rem; color: var(--muted); }
+.team-name-label { font-family: 'Playfair Display', serif; font-style: italic; font-size: .85rem; color: var(--brown); flex-shrink: 0; }
 .team-desc { font-size: .68rem; color: var(--muted); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; flex-shrink: 1; min-width: 0; }
 .team-members-strip { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
 .member-more { font-size: .58rem; color: var(--muted); font-weight: 700; background: var(--light-brown); border-radius: 8px; padding: 1px 5px; }
@@ -171,41 +144,58 @@ header {
   .presence-group { border-left: none; padding-left: 0; }
 }
 
-/* ── PERSONAL BOARD MODE ── */
-body.scope-mine { background: #f1e6d4; }
-body.scope-mine .team-bar, body.scope-mine .toolbar { background: #ece0cb; }
-.scope-banner {
-  background: var(--brown); color: var(--light-brown); text-align: center;
-  font-family: 'Playfair Display', serif; font-style: italic; font-size: .88rem;
-  padding: .55rem 1rem; border-radius: 6px; margin-bottom: 1rem; letter-spacing: .02em;
-}
 .team-chip-mini { font-size: .58rem; padding: 1px 7px; border-radius: 8px; background: var(--panel); border: 1px solid var(--border); color: var(--brown); font-weight: 700; white-space: nowrap; }
-body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
-.team-menu {
-  display: none; position: absolute; top: calc(100% + 6px); left: 0;
-  width: 250px; background: var(--warm-white); border: 1px solid var(--border);
-  border-radius: 6px; box-shadow: 0 8px 24px rgba(26,18,8,.2); z-index: 200; overflow: hidden;
-}
-.team-menu.open { display: block; }
-.team-menu-label { font-size: .56rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 700; padding: .5rem .8rem .2rem; }
-.team-menu-list { max-height: 200px; overflow-y: auto; }
-.team-menu-team {
-  width: 100%; text-align: left; background: none; border: none; cursor: pointer;
-  padding: .45rem .8rem; font-size: .8rem; color: var(--ink); font-family: 'Lato', sans-serif;
-  transition: background .12s; display: block;
-}
-.team-menu-team:hover { background: var(--panel); }
-.team-menu-team.active { background: var(--light-brown); font-weight: 700; }
-.team-menu-divider { height: 1px; background: var(--border); margin: .2rem 0; }
-.team-menu-item {
-  width: 100%; text-align: left; background: none; border: none; cursor: pointer;
-  padding: .5rem .8rem; font-size: .78rem; color: var(--brown); font-weight: 700;
-  font-family: 'Lato', sans-serif; transition: background .12s;
-}
-.team-menu-item:hover { background: var(--panel); }
 
-/* Inline dropdowns used inside the goal edit form (Owner / Team pickers) —
-   same visual language as the team-switcher menu above. */
+/* ── TEAMS COLUMN (right sidebar) ── */
+.teams-sidebar-col { flex: 0 0 260px; min-width: 220px; max-width: 300px; }
+.teams-panel {
+  border: 1px solid var(--border); border-radius: 8px; background: var(--warm-white);
+  padding: .6rem; display: flex; flex-direction: column; gap: .6rem;
+}
+.teams-panel-hdr {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  background: none; border: none; cursor: pointer; padding: .1rem 0;
+  font-family: 'Playfair Display', serif; font-style: italic; font-size: .95rem; color: var(--brown);
+}
+.teams-panel-hdr.collapsed { justify-content: center; gap: .3rem; }
+.teams-collapse-chevron { font-size: .65rem; color: var(--muted); }
+.teams-list { display: flex; flex-direction: column; gap: .5rem; max-height: 60vh; overflow-y: auto; }
+.teams-empty { font-size: .72rem; color: var(--muted); font-style: italic; }
+.team-row {
+  border: 1px solid var(--border); border-radius: 6px; padding: .5rem .6rem; cursor: pointer;
+  background: var(--panel); transition: background .15s, border-color .15s;
+}
+.team-row:hover { background: var(--light-brown); }
+.team-row.active { border-color: var(--gold); background: #fffbf0; }
+.team-row-top { display: flex; align-items: center; justify-content: space-between; gap: .4rem; }
+.team-row-name { font-family: 'Playfair Display', serif; font-style: italic; font-size: .82rem; color: var(--brown); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.team-row-gear {
+  background: none; border: 1px solid transparent; border-radius: 50%; cursor: pointer;
+  font-size: .72rem; color: var(--muted); width: 22px; height: 22px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; transition: all .15s;
+}
+.team-row-gear:hover { color: var(--brown); border-color: var(--border); background: var(--warm-white); }
+.team-row-avatars { display: flex; align-items: center; gap: 3px; margin-top: .35rem; }
+.team-row-desc { font-size: .62rem; color: var(--muted); font-style: italic; margin-top: .3rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.teams-panel-actions { display: flex; flex-direction: column; gap: .35rem; }
+
+/* ── NOTES DUMP (pinned quick-capture bar, top of every view) ── */
+.notes-dump-bar { padding: .5rem 1.4rem 0; }
+.notes-dump-inner {
+  border: 1px solid var(--border); border-radius: 8px; background: var(--warm-white);
+  padding: .5rem .7rem; display: flex; flex-direction: column; gap: .4rem; max-width: 900px; margin: 0 auto;
+}
+.notes-dump-inner.collapsed { padding: .2rem .7rem; }
+.notes-dump-hdr {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  background: none; border: none; cursor: pointer; padding: .1rem 0;
+  font-family: 'Playfair Display', serif; font-style: italic; font-size: .88rem; color: var(--brown);
+}
+.notes-dump-hdr.collapsed { justify-content: center; gap: .4rem; font-size: .8rem; }
+.notes-dump-chevron { font-size: .65rem; color: var(--muted); }
+.notes-dump-lines { display: flex; flex-direction: column; gap: .3rem; max-height: 220px; overflow-y: auto; }
+
+/* Inline dropdowns used inside the goal edit form (Owner / Team pickers). */
 .inline-dd-wrap { position: relative; min-width: 0; display: inline-flex; }
 .inline-dd-menu {
   display: none; position: absolute; top: calc(100% + 4px); left: 0; min-width: 190px; max-width: 260px;
@@ -254,16 +244,6 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 }
 .vpill:hover { color: var(--brown); border-color: var(--border); }
 .vpill.active { background: var(--ink); color: var(--light-brown); border-color: var(--ink); font-style: normal; font-weight: 700; letter-spacing: .03em; }
-
-/* scope pills get their own accent color so they're visually distinct from the view pills */
-.spill {
-  font-family: 'Playfair Display', serif; font-style: italic; font-size: .8rem;
-  color: var(--muted); padding: 3px 12px; border-radius: 20px;
-  border: 1px solid transparent; background: transparent; cursor: pointer;
-  transition: all .15s; white-space: nowrap;
-}
-.spill:hover { color: var(--rust); border-color: var(--border); }
-.spill.active { background: var(--rust); color: #fff; border-color: var(--rust); font-style: normal; font-weight: 700; letter-spacing: .03em; }
 
 .today-jump {
   font-size: .62rem; letter-spacing: .08em; text-transform: uppercase; font-weight: 700;
@@ -344,8 +324,23 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 /* The Scratchboard sits on the left alongside whatever view is active
    (Day/Week/Matrix) — one persistent sidebar, not something that
    disappears when you switch views. */
-.app-shell { display: flex; gap: .6rem; align-items: flex-start; }
-.board-content { flex: 1; min-width: 0; max-width: 640px; }
+.app-shell { display: flex; gap: 1.2rem; align-items: flex-start; }
+.board-content { flex: 1; min-width: 0; }
+/* Personal and Team goals, always shown side by side — a goal lives in
+   exactly one column (private → My Goals, public → the selected team),
+   so there's never overlap between them. */
+.goals-columns { display: flex; gap: 1.2rem; align-items: flex-start; }
+.goals-col { flex: 1; min-width: 0; }
+.goals-col-hdr {
+  font-family: 'Playfair Display', serif; font-style: italic; font-size: .95rem;
+  color: var(--brown); margin-bottom: .6rem; padding-bottom: .3rem; border-bottom: 2px solid var(--border);
+}
+.goals-columns-week { align-items: stretch; }
+.goals-columns-week .goals-col { min-width: 0; overflow-x: auto; }
+@media (max-width: 1100px) {
+  .goals-columns { flex-direction: column; }
+  .goals-columns-week .goals-col { overflow-x: visible; }
+}
 .board-content.wide { max-width: none; }
 /* Matrix view renders the Completed panel inline, right under the matrix
    itself (see render()), so it's a child of board-content and therefore
@@ -458,7 +453,11 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 }
 
 /* ── PRIORITY MATRIX (My Board only) ── */
+.matrix-intro { text-align: center; font-size: .68rem; color: var(--muted); font-style: italic; margin-bottom: 1rem; }
 .matrix-unrated { margin-bottom: 1.1rem; }
+.matrix-unrated-hdr { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
+.matrix-unrated-title { font-family: 'Playfair Display', serif; font-size: .9rem; color: var(--brown); }
+.matrix-unrated-line { flex: 1; height: 1px; background: var(--border); }
 .matrix-unrated-tray {
   display: flex; gap: .5rem; overflow-x: auto; padding-bottom: .3rem;
   border-radius: 6px; transition: background .12s, outline .12s; min-height: 40px;
@@ -584,6 +583,18 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 }
 .note-line textarea:focus { border-color: var(--gold); background: var(--warm-white); }
 .note-line.converted textarea { color: var(--muted); text-decoration: line-through; background: var(--success-pale); }
+/* Plain "done" checkbox — independent of .converted (goal conversion).
+   Strikes through the text but keeps the line visible, no background change,
+   so it reads distinctly from "this became a goal". */
+.note-line.checked textarea { color: var(--muted); text-decoration: line-through; }
+.note-line-check {
+  width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; margin-top: .55rem;
+  border: 2px solid var(--border); background: transparent; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: .6rem; color: transparent;
+  transition: all .15s; padding: 0;
+}
+.note-line-check:hover { border-color: var(--success); }
+.note-line-check.checked { background: var(--success); border-color: var(--success); color: #fff; }
 .note-convert-btn, .note-del-btn {
   background: none; border: 1px solid var(--border); border-radius: 999px; cursor: pointer;
   font-size: .72rem; width: 26px; height: 26px; flex-shrink: 0; color: var(--muted); transition: all .15s;
@@ -638,6 +649,8 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   .matrix-grid { grid-template-columns: 1fr; grid-template-rows: none; min-height: auto; }
   .app-shell { flex-direction: column; }
   .scratch-sidebar-col { max-width: none; min-width: 0; width: 100%; flex: 1 1 auto; }
+  .teams-sidebar-col { max-width: none; min-width: 0; width: 100%; flex: 1 1 auto; }
+  .teams-list { max-height: none; }
 }
 
 @media (max-width: 600px) {
@@ -653,7 +666,7 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 <div id="loginScreen">
   <div style="display:flex;flex-direction:column;align-items:center;gap:.3rem">
     <div class="login-title">Studio Board</div>
-    <div class="login-sub">Dailing Planning the smart way</div>
+    <div class="login-sub">Daily Room Planning</div>
   </div>
   <div class="login-divider"></div>
   <div class="login-prompt">Sign in to continue</div>
@@ -671,6 +684,9 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
 
 <!-- Everything below sticks together as one unit -->
 <div class="app-topbar">
+<!-- Notes Dump: a titleless quick-capture scratchboard, pinned above
+     everything so it's reachable from every view. -->
+<div class="notes-dump-bar" id="notesDumpBar"></div>
 <!-- Header -->
 <header>
   <div class="brand">
@@ -690,22 +706,11 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   </div>
 </header>
 
-<!-- Team bar -->
+<!-- Team bar — now just a passive "currently selected team" glance; actual
+     switching/managing happens in the collapsible Teams column on the right. -->
 <div class="team-bar">
   <div class="team-info-group">
-    <div class="team-switcher">
-      <button class="team-switch-btn" onclick="toggleTeamMenu()">
-        <span id="teamNameLabel">Loading…</span><span class="team-chevron">▾</span>
-      </button>
-      <div class="team-menu" id="teamMenu">
-        <div class="team-menu-label">Your Teams</div>
-        <div class="team-menu-list" id="teamMenuList"></div>
-        <div class="team-menu-divider"></div>
-        <button class="team-menu-item" onclick="openCreateTeamModal()">＋ New Team</button>
-        <button class="team-menu-item" onclick="openJoinTeamModal()">🔗 Join a Team</button>
-        <button class="team-menu-item" onclick="openTeamSettingsModal()">⚙ Board Settings</button>
-      </div>
-    </div>
+    <span id="teamNameLabel" class="team-name-label">Loading…</span>
     <div class="team-members-strip" id="teamMembersStrip"></div>
     <div class="team-desc" id="teamDescLabel"></div>
   </div>
@@ -723,19 +728,11 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
   <button class="today-jump" id="todayJumpBtn" onclick="jumpToToday()">Today</button>
   <div class="toolbar-spacer"></div>
   <div class="toggle-group">
-    <span class="toggle-cap">Board</span>
-    <div class="scope-toggle">
-      <button class="spill active" id="scopeTeamBtn" onclick="setScope('team')" title="Everyone's public goals">Team Board</button>
-      <button class="spill" id="scopeMineBtn" onclick="setScope('mine')" title="Just your goals, same days">My Board</button>
-    </div>
-  </div>
-  <div class="toggle-divider"></div>
-  <div class="toggle-group">
     <span class="toggle-cap">View</span>
     <div class="view-toggle">
       <button class="vpill active" id="viewTodayBtn" onclick="setView('today')">Day</button>
       <button class="vpill" id="viewWeekBtn" onclick="setView('week')">Week</button>
-      <button class="vpill" id="viewMatrixBtn" onclick="setView('matrix')" style="display:none" title="Only available on My Board">Matrix</button>
+      <button class="vpill" id="viewMatrixBtn" onclick="setView('matrix')">Matrix</button>
     </div>
   </div>
 </div>
@@ -755,6 +752,9 @@ body.scope-mine .goal-card { border-left: 3px solid var(--brown); }
       <div class="scratch-sidebar" id="scratchSidebar"></div>
     </div>
     <div id="board" class="board-content"></div>
+    <div class="teams-sidebar-col">
+      <div class="teams-panel" id="teamsPanel"></div>
+    </div>
   </div>
 </main>
 
@@ -804,7 +804,6 @@ let goalsUnsub    = null;
 let usersUnsub    = null;
 let teamsUnsub    = null;
 let currentView   = 'today';  // 'today' | 'week'
-let scopeFilter   = 'team';   // 'team' (everyone's public goals) | 'mine' (just current user)
 let currentTeamId = DEFAULT_TEAM_ID;
 let editingGoalId = null;     // id of the goal currently showing its inline edit panel
 // Which day-groups in the Completed panel are expanded. Today's group
@@ -888,13 +887,9 @@ onAuthStateChanged(auth, async user => {
       lastSeen: serverTimestamp()
     }, { merge: true });
     currentTeamId = localStorage.getItem(`sb_team_${user.uid}`) || DEFAULT_TEAM_ID;
-    scopeFilter = localStorage.getItem(`sb_scope_${user.uid}`) || 'team';
     currentView = localStorage.getItem(`sb_view_${user.uid}`) || 'today';
-    if (currentView === 'matrix' && scopeFilter !== 'mine') currentView = 'today'; // guard against a stale/invalid combo
-    document.getElementById('scopeTeamBtn').classList.toggle('active', scopeFilter === 'team');
-    document.getElementById('scopeMineBtn').classList.toggle('active', scopeFilter === 'mine');
-    document.body.classList.toggle('scope-mine', scopeFilter === 'mine');
-    document.getElementById('viewMatrixBtn').style.display = scopeFilter === 'mine' ? '' : 'none';
+    teamsColumnCollapsed = localStorage.getItem(`sb_teamscol_${user.uid}`) === '1';
+    notesDumpCollapsed = localStorage.getItem(`sb_notesdump_${user.uid}`) === '1';
     document.getElementById('viewTodayBtn').classList.toggle('active', currentView === 'today');
     document.getElementById('viewWeekBtn').classList.toggle('active', currentView === 'week');
     document.getElementById('viewMatrixBtn').classList.toggle('active', currentView === 'matrix');
@@ -922,7 +917,7 @@ async function ensureDefaultTeamMembership() {
     const snap = await getDoc(ref);
     if (!snap.exists()) {
       await setDoc(ref, {
-        name: 'Default Team',
+        name: 'Room Planning Team',
         description: 'The original shared studio board',
         memberUids: [currentUser.uid],
         ownerUid: currentUser.uid,
@@ -1069,8 +1064,6 @@ window.toggleAvatarMenu = function() {
 document.addEventListener('click', e => {
   const wrap = document.querySelector('.avatar-menu-wrap');
   if (wrap && !wrap.contains(e.target)) document.getElementById('avatarDropdown').classList.remove('open');
-  const tw = document.querySelector('.team-switcher');
-  if (tw && !tw.contains(e.target)) document.getElementById('teamMenu').classList.remove('open');
   // Close any open inline dropdown (goal edit form's Owner/Team pickers) if
   // the click landed outside its own wrapper.
   document.querySelectorAll('.inline-dd-wrap').forEach(wrap => {
@@ -1128,36 +1121,116 @@ function myTeamEntries() {
 }
 function teamName(teamId) {
   const id = teamId || DEFAULT_TEAM_ID;
-  return (teams[id] && teams[id].name) || 'Default Team';
+  return (teams[id] && teams[id].name) || 'Room Planning Team';
 }
 function renderTeamBar() {
   const t = teams[currentTeamId];
-  document.getElementById('teamNameLabel').textContent = t ? t.name : 'Default Team';
+  document.getElementById('teamNameLabel').textContent = t ? t.name : 'Room Planning Team';
   document.getElementById('teamDescLabel').textContent = t && t.description ? t.description : '';
   const memberUids = (t && t.memberUids) || [];
   const stripEl = document.getElementById('teamMembersStrip');
   stripEl.innerHTML = memberUids.slice(0, 6).map(uid => `<span title="${esc(userName(uid))}">${avatarHTML(uid)}</span>`).join('')
     + (memberUids.length > 6 ? `<span class="member-more">+${memberUids.length - 6}</span>` : '');
-  const listEl = document.getElementById('teamMenuList');
-  const mine = myTeamEntries();
-  listEl.innerHTML = mine.length
-    ? mine.map(([id, team]) => `
-        <button class="team-menu-team ${id===currentTeamId?'active':''}" onclick="switchTeam('${id}')">
-          ${esc(team.name)} <span style="color:var(--muted);font-weight:400">· ${(team.memberUids||[]).length} member${(team.memberUids||[]).length===1?'':'s'}</span>
-        </button>
-      `).join('')
-    : `<div style="padding:.5rem .8rem;font-size:.72rem;color:var(--muted);font-style:italic">No teams yet</div>`;
+  renderTeamsPanel();
 }
-window.toggleTeamMenu = function() {
-  document.getElementById('teamMenu').classList.toggle('open');
+
+// ── TEAMS COLUMN (right sidebar) — switching, member glance, and access to
+// Board Settings all live here now, replacing the old dropdown. Collapsible,
+// remembered per-user like the other view prefs. ──
+let teamsColumnCollapsed = false;
+window.toggleTeamsColumn = function() {
+  teamsColumnCollapsed = !teamsColumnCollapsed;
+  if (currentUser) localStorage.setItem(`sb_teamscol_${currentUser.uid}`, teamsColumnCollapsed ? '1' : '0');
+  renderTeamsPanel();
 };
+function renderTeamsPanel() {
+  const panel = document.getElementById('teamsPanel');
+  if (!panel) return;
+  if (teamsColumnCollapsed) {
+    panel.innerHTML = `
+      <button class="teams-panel-hdr collapsed" onclick="toggleTeamsColumn()" title="Expand Teams">
+        <span class="teams-panel-title">👥</span><span class="teams-collapse-chevron">◂</span>
+      </button>
+    `;
+    return;
+  }
+  const mine = myTeamEntries();
+  panel.innerHTML = `
+    <button class="teams-panel-hdr" onclick="toggleTeamsColumn()" title="Collapse Teams">
+      <span class="teams-panel-title">👥 Teams</span><span class="teams-collapse-chevron">▸</span>
+    </button>
+    <div class="teams-list">
+      ${mine.length ? mine.map(([id, team]) => teamRowHTML(id, team)).join('') : `<div class="teams-empty">No teams yet</div>`}
+    </div>
+    <div class="teams-panel-actions">
+      <button class="gact" onclick="openCreateTeamModal()">＋ New Team</button>
+      <button class="gact" onclick="openJoinTeamModal()">🔗 Join a Team</button>
+    </div>
+  `;
+}
+function teamRowHTML(id, team) {
+  const memberUids = team.memberUids || [];
+  return `
+    <div class="team-row ${id === currentTeamId ? 'active' : ''}" onclick="switchTeam('${id}')">
+      <div class="team-row-top">
+        <span class="team-row-name">${esc(team.name)}</span>
+        <button class="team-row-gear" onclick="event.stopPropagation(); manageTeam('${id}')" title="Board Settings">⚙</button>
+      </div>
+      <div class="team-row-avatars">
+        ${memberUids.slice(0, 5).map(uid => `<span title="${esc(userName(uid))}">${avatarHTML(uid)}</span>`).join('')}
+        ${memberUids.length > 5 ? `<span class="member-more">+${memberUids.length - 5}</span>` : ''}
+      </div>
+      ${team.description ? `<div class="team-row-desc">${esc(team.description)}</div>` : ''}
+    </div>
+  `;
+}
 window.switchTeam = function(id) {
   currentTeamId = id;
   if (currentUser) localStorage.setItem(`sb_team_${currentUser.uid}`, id);
-  document.getElementById('teamMenu').classList.remove('open');
   renderTeamBar();
   render();
 };
+// Clicking a team's gear icon switches to it (Board Settings always acts
+// on the currently selected team) and opens Board Settings in one step.
+window.manageTeam = function(id) {
+  switchTeam(id);
+  openTeamSettingsModal();
+};
+
+// ── NOTES DUMP (pinned quick-capture bar) — a titleless scratchboard that
+// sits above the team-bar/toolbar on every view, so it's always one click
+// away. In Matrix view it also carries the "Needs Rating" tray, since both
+// are "stuff that hasn't been sorted yet" — collapsible and remembered
+// per-user, same pattern as the Teams column. ──
+let notesDumpCollapsed = false;
+window.toggleNotesDump = function() {
+  notesDumpCollapsed = !notesDumpCollapsed;
+  if (currentUser) localStorage.setItem(`sb_notesdump_${currentUser.uid}`, notesDumpCollapsed ? '1' : '0');
+  document.getElementById('notesDumpBar').innerHTML = notesDumpPanelHTML(currentView === 'matrix');
+};
+function notesDumpPanelHTML(inMatrix) {
+  if (notesDumpCollapsed) {
+    return `
+      <div class="notes-dump-inner collapsed">
+        <button class="notes-dump-hdr collapsed" onclick="toggleNotesDump()" title="Expand Notes Dump">
+          <span class="notes-dump-title">🗒️ Notes Dump</span><span class="notes-dump-chevron">▾</span>
+        </button>
+      </div>
+    `;
+  }
+  return `
+    <div class="notes-dump-inner">
+      <button class="notes-dump-hdr" onclick="toggleNotesDump()" title="Collapse Notes Dump">
+        <span class="notes-dump-title">🗒️ Notes Dump — quick capture, sort it later</span><span class="notes-dump-chevron">▴</span>
+      </button>
+      <div class="notes-dump-lines">
+        ${notesDumpBoard.lines.map(l => noteLineHTML(NOTES_DUMP_ID, l)).join('')}
+      </div>
+      <button class="gact board-add-line" onclick="addNoteLine('${NOTES_DUMP_ID}')">＋ Add line</button>
+      ${inMatrix ? matrixUnratedBlockHTML() : ''}
+    </div>
+  `;
+}
 
 // ── GENERIC MODAL ─────────────────────────────────────────
 function openModal(title, bodyHTML, onSave) {
@@ -1170,7 +1243,6 @@ function openModal(title, bodyHTML, onSave) {
 window.closeModal = function() { document.getElementById('modalOverlay').classList.remove('open'); };
 
 window.openCreateTeamModal = function() {
-  document.getElementById('teamMenu').classList.remove('open');
   openModal('New Team Board', `
     <div class="form-row"><label>Team Name</label><input id="newTeamName" type="text" placeholder="e.g. Downtown Showroom"/></div>
     <div class="form-row"><label>Description</label><textarea id="newTeamDesc" placeholder="What this board is for"></textarea></div>
@@ -1188,7 +1260,6 @@ window.openCreateTeamModal = function() {
 };
 
 window.openJoinTeamModal = function() {
-  document.getElementById('teamMenu').classList.remove('open');
   openModal('Join a Team', `
     <div class="form-row"><label>Team ID</label><input id="joinTeamId" type="text" placeholder="Paste the Team ID you were given"/></div>
     <div class="form-note">Ask a teammate to open Board Settings on the team you want — it shows the Team ID to share.</div>
@@ -1206,7 +1277,6 @@ window.openJoinTeamModal = function() {
 };
 
 window.openTeamSettingsModal = function() {
-  document.getElementById('teamMenu').classList.remove('open');
   const t = teams[currentTeamId] || { name: '', description: '', memberUids: [] };
   const isAdmin = currentUser && t.ownerUid === currentUser.uid;
   const membersHTML = (t.memberUids || []).map(uid => `
@@ -1265,6 +1335,17 @@ function nextBoardColor() { return BOARD_COLORS[scratchBoards.length % BOARD_COL
 
 function defaultBoard() { return { id: genId('m'), title: 'Untitled Board', color: nextBoardColor(), public: false, completed: false, completedAt: null, lines: [{ id: genId('l'), text: '', converted: false }] }; }
 
+// The Notes Dump is a titleless scratchboard, stored separately from the
+// named boards (its own `notesDump` field in the same notes doc) — same
+// line shape and machinery (findBoard, noteLineHTML, convert/drag/etc.) via
+// this one persistent singleton object, so every existing line-level
+// feature (checkbox, convert-to-goal, drag) works on it for free. The
+// `title` here is only ever used as the header on a clipboard copy —
+// lines converted from it skip the "Title: " prefix entirely (see
+// createGoalFromNoteLine), since there's no real title to speak of.
+const NOTES_DUMP_ID = '__dump__';
+let notesDumpBoard = { id: NOTES_DUMP_ID, title: 'Notes Dump', lines: [{ id: genId('l'), text: '', converted: false, checked: false }] };
+
 function subscribeToNotes() {
   if (notesUnsub) notesUnsub();
   notesUnsub = onSnapshot(doc(db, 'notes', currentUser.uid), snap => {
@@ -1288,6 +1369,11 @@ function subscribeToNotes() {
       if (typeof b.completed !== 'boolean') b.completed = false;
       if (b.completedAt === undefined) b.completedAt = null;
     });
+    if (data && Array.isArray(data.notesDump) && data.notesDump.length) {
+      notesDumpBoard.lines = data.notesDump;
+    } else if (!notesDumpBoard.lines.length) {
+      notesDumpBoard.lines = [{ id: genId('l'), text: '', converted: false, checked: false }];
+    }
     render();
   }, err => console.error('notes subscription failed (check Firestore rules for /notes):', err));
 }
@@ -1296,7 +1382,7 @@ function scheduleNotesSave() {
   clearTimeout(notesSaveTimer);
   notesSaveTimer = setTimeout(async () => {
     try {
-      await setDoc(doc(db, 'notes', currentUser.uid), { boards: scratchBoards, updatedAt: serverTimestamp() }, { merge: true });
+      await setDoc(doc(db, 'notes', currentUser.uid), { boards: scratchBoards, notesDump: notesDumpBoard.lines, updatedAt: serverTimestamp() }, { merge: true });
       await syncPublicBoardsMirror();
     } catch (e) { console.error('notes save failed', e); }
   }, 500);
@@ -1379,7 +1465,7 @@ window.onBoardColorInput = function(boardId, value) {
   if (b) { b.color = value; scheduleNotesSave(); render(); }
 };
 
-function findBoard(boardId) { return scratchBoards.find(m => m.id === boardId); }
+function findBoard(boardId) { return boardId === NOTES_DUMP_ID ? notesDumpBoard : scratchBoards.find(m => m.id === boardId); }
 
 window.onBoardTitleInput = function(boardId, value) {
   const m = findBoard(boardId);
@@ -1529,7 +1615,9 @@ async function createGoalFromNoteLine(boardId, lineId, extra) {
   const line = m && m.lines.find(l => l.id === lineId);
   if (!line || !line.text.trim()) { showToast('Nothing to convert'); return false; }
   const title = (m.title || 'Notes').trim() || 'Notes';
-  const text = `${title}: ${line.text.trim()}`;
+  // The Notes Dump has no real title — a bare capture line should become
+  // a bare goal, not "Notes Dump: buy milk".
+  const text = boardId === NOTES_DUMP_ID ? line.text.trim() : `${title}: ${line.text.trim()}`;
   await addDoc(collection(db, 'goals'), {
     text,
     uid: currentUser.uid, teamId: currentTeamId,
@@ -1644,23 +1732,27 @@ async function rolloverOverdueGoals() {
   }
 }
 
-function goalsFor(dateStr, slot) {
+// Personal and Team goals are now two permanently separate lists, split by
+// the goal's own visibility field rather than by a toggle: 'mine' is every
+// private goal you own (across every team you're in — personal goals aren't
+// tied to one team), 'team' is every public goal on the currently selected
+// team (anyone's — the team switcher is what filters this one). A goal is
+// always in exactly one of these, never both, so there's no overlap.
+function goalsFor(dateStr, slot, scope) {
   const myUid = currentUser && currentUser.uid;
   let list = goals.filter(g => g.date === dateStr && g.slot === slot);
-  if (scopeFilter === 'mine') {
-    // My Board shows every goal you own, across every team you're in —
-    // not just the currently selected team.
-    list = list.filter(g => g.uid === myUid);
+  if (scope === 'mine') {
+    list = list.filter(g => g.uid === myUid && g.visibility === 'private');
   } else {
     list = list
       .filter(g => (g.teamId || DEFAULT_TEAM_ID) === currentTeamId)
-      .filter(g => g.uid === myUid || g.visibility !== 'private'); // private goals only visible to their owner
+      .filter(g => g.visibility !== 'private');
   }
   return list.sort((a,b) => (a.order ?? a.createdAtMs ?? 0) - (b.order ?? b.createdAtMs ?? 0));
 }
 
-window.addGoal = async function(dateStr, slot) {
-  const input = document.getElementById(`add-${dateStr}-${slot}`);
+window.addGoal = async function(dateStr, slot, scope) {
+  const input = document.getElementById(`add-${scope}-${dateStr}-${slot}`);
   const text = (input.value || '').trim();
   if (!text) return;
   input.value = '';
@@ -1669,7 +1761,7 @@ window.addGoal = async function(dateStr, slot) {
     text, date: dateStr, slot,
     uid: currentUser.uid,
     teamId: currentTeamId,
-    visibility: scopeFilter === 'mine' ? 'private' : 'public',
+    visibility: scope === 'mine' ? 'private' : 'public',
     completed: false,
     createdAt: serverTimestamp(),
     createdAtMs: Date.now(),
@@ -1677,8 +1769,8 @@ window.addGoal = async function(dateStr, slot) {
   });
 };
 
-window.addGoalKeydown = function(e, dateStr, slot) {
-  if (e.key === 'Enter') { e.preventDefault(); addGoal(dateStr, slot); }
+window.addGoalKeydown = function(e, dateStr, slot, scope) {
+  if (e.key === 'Enter') { e.preventDefault(); addGoal(dateStr, slot, scope); }
 };
 
 // Quick Add box above the Scratchboard — visible on every view, always
@@ -1700,7 +1792,7 @@ window.quickAddGoal = async function() {
     text, date, slot,
     uid: currentUser.uid,
     teamId: currentTeamId,
-    visibility: scopeFilter === 'mine' ? 'private' : 'public',
+    visibility: 'private', // Quick Add always starts personal — flip the 🔒/🌐 tag to share it with the team
     completed: false,
     effort: null,
     reward: null,
@@ -1736,18 +1828,7 @@ window.deleteGoal = async function(id) {
   await deleteDoc(doc(db, 'goals', id));
 };
 
-// ── VIEW / SCOPE SWITCHING ─────────────────────────────────
-window.setScope = function(s) {
-  scopeFilter = s;
-  document.getElementById('scopeTeamBtn').classList.toggle('active', s === 'team');
-  document.getElementById('scopeMineBtn').classList.toggle('active', s === 'mine');
-  document.body.classList.toggle('scope-mine', s === 'mine');
-  document.getElementById('viewMatrixBtn').style.display = s === 'mine' ? '' : 'none';
-  if (currentUser) localStorage.setItem(`sb_scope_${currentUser.uid}`, s);
-  if (s === 'team' && currentView === 'matrix') { setView('today'); return; }
-  render();
-};
-
+// ── VIEW SWITCHING ─────────────────────────────────────────
 window.setView = function(v) {
   currentView = v;
   if (v !== 'matrix') { selectedQuadrant = null; quadComposeActive = false; }
@@ -1797,9 +1878,6 @@ function render() {
   const board = document.getElementById('board');
   document.getElementById('board').classList.toggle('wide', currentView === 'matrix');
   const inMatrix = currentView === 'matrix';
-  const banner = scopeFilter === 'mine' && currentView !== 'matrix'
-    ? `<div class="scope-banner">🔒 My Board — every goal you own, across all your teams</div>`
-    : '';
   // The Completed panel always lives underneath whatever view is showing,
   // as a child of board-content, so it's never off to the side and always
   // matches that view's own width. Matrix already nests it inside
@@ -1820,9 +1898,10 @@ function render() {
     ? { id: active.id, value: active.value, start: active.selectionStart, end: active.selectionEnd }
     : null;
 
-  board.innerHTML = banner + viewHTML;
+  board.innerHTML = viewHTML;
   document.getElementById('scratchSidebar').innerHTML = scratchSidebarHTML();
-  document.querySelectorAll('.notes-lines textarea').forEach(autoGrowNoteLine);
+  document.getElementById('notesDumpBar').innerHTML = notesDumpPanelHTML(inMatrix);
+  document.querySelectorAll('.notes-lines textarea, .notes-dump-lines textarea').forEach(autoGrowNoteLine);
 
   if (restore) {
     const el = document.getElementById(restore.id);
@@ -1858,26 +1937,36 @@ function renderTodayView(dateStr, wd) {
       <div class="today-hero-day">${fmtLong(dateStr)}</div>
       <div class="today-hero-sub">${dateStr === todayActual ? 'Today' : (viewingPast ? 'Past day' : 'Upcoming')}</div>
     </div>
-    <div class="drag-hint">Drag a goal to reorder it, move it to a different slot, or drop it on another day in Week view. Click ✎ for owner, date, slot, or visibility.</div>
+    <div class="drag-hint">Drag a goal to reorder it, move it to a different slot/day, or across to the other column to make it private/public. Click ▾ for owner, date, slot, or visibility.</div>
     ${pastNote}
-    ${slotSectionHTML(dateStr, 'morning', '☕', 'Morning')}
-    ${slotSectionHTML(dateStr, 'afternoon', '🛋️', 'Afternoon')}
+    <div class="goals-columns">
+      <div class="goals-col personal-col">
+        <div class="goals-col-hdr">🔒 My Goals</div>
+        ${slotSectionHTML(dateStr, 'morning', '☕', 'Morning', 'mine')}
+        ${slotSectionHTML(dateStr, 'afternoon', '🛋️', 'Afternoon', 'mine')}
+      </div>
+      <div class="goals-col team-col">
+        <div class="goals-col-hdr">🌐 ${esc(teamName(currentTeamId))}</div>
+        ${slotSectionHTML(dateStr, 'morning', '☕', 'Morning', 'team')}
+        ${slotSectionHTML(dateStr, 'afternoon', '🛋️', 'Afternoon', 'team')}
+      </div>
+    </div>
   `;
 }
 
 window.selectDay = function(d) { selectedDate = d; render(); };
 
-function slotSectionHTML(dateStr, slot, icon, label) {
-  const list = goalsFor(dateStr, slot);
+function slotSectionHTML(dateStr, slot, icon, label, scope) {
+  const list = goalsFor(dateStr, slot, scope);
   const past = isPastDate(dateStr);
   const addArea = past
     ? `<div class="add-goal-locked">🔒 Past day — locked. Anything left unfinished here already rolled forward to today.</div>`
     : `
       <div class="add-goal-row">
-        <input class="add-goal-input" id="add-${dateStr}-${slot}" placeholder="Add ${article(label)} ${label.toLowerCase()} goal…" onkeydown="addGoalKeydown(event,'${dateStr}','${slot}')"/>
-        <button class="add-goal-btn" onclick="addGoal('${dateStr}','${slot}')">Add</button>
+        <input class="add-goal-input" id="add-${scope}-${dateStr}-${slot}" placeholder="Add ${article(label)} ${label.toLowerCase()} goal…" onkeydown="addGoalKeydown(event,'${dateStr}','${slot}','${scope}')"/>
+        <button class="add-goal-btn" onclick="addGoal('${dateStr}','${slot}','${scope}')">Add</button>
       </div>
-      <div class="add-goal-note">${scopeFilter === 'mine' ? '🔒 New goals here start private (only you).' : '🌐 New goals here start public (visible to the team).'}</div>
+      <div class="add-goal-note">${scope === 'mine' ? '🔒 Private — only you.' : '🌐 Public — visible to the team.'}</div>
     `;
   return `
     <div class="slot-section">
@@ -1890,8 +1979,8 @@ function slotSectionHTML(dateStr, slot, icon, label) {
       <div class="goal-list"
            ondragover="onSlotDragOver(event,'${dateStr}')"
            ondragleave="onSlotDragLeave(event)"
-           ondrop="onSlotDrop(event,'${dateStr}','${slot}')">
-        ${list.length ? list.map(goalCardHTML).join('') : `<div class="empty-slot">Nothing planned yet${past ? '' : ' — or drag a goal here'}</div>`}
+           ondrop="onSlotDrop(event,'${dateStr}','${slot}','${scope}')">
+        ${list.length ? list.map(g => goalCardHTML(g, scope)).join('') : `<div class="empty-slot">Nothing planned yet${past ? '' : ' — or drag a goal here'}</div>`}
       </div>
       ${addArea}
     </div>
@@ -1934,7 +2023,7 @@ window.textEditKeydown = function(e, id) {
   else if (e.key === 'Escape') { e.preventDefault(); inlineEditingTextId = null; render(); }
 };
 
-function goalCardHTML(g) {
+function goalCardHTML(g, scope) {
   const editing = g.id === editingGoalId;
   const isPrivate = g.visibility === 'private';
   const isMine = g.uid === (currentUser && currentUser.uid);
@@ -1945,15 +2034,15 @@ function goalCardHTML(g) {
          ondragstart="onGoalDragStart(event,'${g.id}')"
          ondragend="onGoalDragEnd(event)"
          ondragover="event.preventDefault(); event.stopPropagation();"
-         ondrop="onGoalCardDrop(event,'${g.id}')">
+         ondrop="onGoalCardDrop(event,'${g.id}','${scope}')">
       <button class="goal-check" onclick="toggleGoal('${g.id}')">${g.completed ? '✓' : ''}</button>
       <div class="goal-body">
         ${goalTextHTML(g)}
         <div class="goal-meta">
           ${ownerTagHTML(g)}
-          ${isMine && scopeFilter === 'team' ? `<span class="mine-badge">★ You</span>` : ''}
+          ${isMine && scope === 'team' ? `<span class="mine-badge">★ You</span>` : ''}
           ${visibilityTagHTML(g)}
-          ${scopeFilter === 'mine' ? teamTagHTML(g) : ''}
+          ${scope === 'mine' ? teamTagHTML(g) : ''}
         </div>
         ${editing ? goalEditFormHTML(g) : ''}
       </div>
@@ -2161,27 +2250,34 @@ window.onSlotDragLeave = function(e) {
   e.currentTarget.classList.remove('drag-over');
   e.currentTarget.classList.remove('drag-over-blocked');
 };
-window.onSlotDrop = async function(e, dateStr, slot) {
+// scope is always known here (slot containers always pass 'mine' or 'team')
+// — dropping into a column sets visibility to match it, so dragging a card
+// across from the other column is how you flip it private/public, same
+// action the 🔒/🌐 tag on the tile already does.
+window.onSlotDrop = async function(e, dateStr, slot, scope) {
   e.preventDefault();
   e.currentTarget.classList.remove('drag-over');
   e.currentTarget.classList.remove('drag-over-blocked');
   if (isPastDate(dateStr)) { showToast("Can't move goals to a past day"); return; }
   const raw = e.dataTransfer.getData('text/plain');
   if (!raw) return;
+  const visibility = scope === 'mine' ? 'private' : 'public';
   const noteDrag = parseNoteDrag(raw);
   if (noteDrag) {
-    const ok = await createGoalFromNoteLine(noteDrag.boardId, noteDrag.lineId, { date: dateStr, slot });
+    const ok = await createGoalFromNoteLine(noteDrag.boardId, noteDrag.lineId, { date: dateStr, slot, visibility, teamId: currentTeamId });
     if (ok) showToast(`Added to ${fmtShort(dateStr)} · ${slot}`);
     return;
   }
   const id = raw;
   const g = goals.find(x => x.id === id);
-  if (!g || (g.date === dateStr && g.slot === slot)) return;
-  const list = goalsFor(dateStr, slot);
-  await updateDoc(doc(db, 'goals', id), { date: dateStr, slot, rolled: false, order: (list[list.length-1]?.order ?? 0) + 1 });
+  if (!g || (g.date === dateStr && g.slot === slot && g.visibility === visibility)) return;
+  const list = goalsFor(dateStr, slot, scope);
+  const patch = { date: dateStr, slot, rolled: false, visibility, order: (list[list.length-1]?.order ?? 0) + 1 };
+  if (scope === 'team') patch.teamId = currentTeamId;
+  await updateDoc(doc(db, 'goals', id), patch);
   showToast(`Moved to ${fmtShort(dateStr)} · ${slot}`);
 };
-window.onGoalCardDrop = async function(e, targetId) {
+window.onGoalCardDrop = async function(e, targetId, scope) {
   e.preventDefault();
   e.stopPropagation();
   const raw = e.dataTransfer.getData('text/plain');
@@ -2189,18 +2285,23 @@ window.onGoalCardDrop = async function(e, targetId) {
   const target = goals.find(x => x.id === targetId);
   if (!target) return;
   if (isPastDate(target.date)) { showToast("Can't move goals to a past day"); return; }
+  // scope is only reliably known when the card sits in a Personal/Team
+  // column; elsewhere (e.g. the Completed panel) it's undefined, so fall
+  // back to leaving visibility/team untouched rather than guessing.
+  const scopeKnown = scope === 'mine' || scope === 'team';
+  const visibility = scopeKnown ? (scope === 'mine' ? 'private' : 'public') : target.visibility;
   const noteDrag = parseNoteDrag(raw);
   if (noteDrag) {
-    const list = goalsFor(target.date, target.slot);
-    const ok = await createGoalFromNoteLine(noteDrag.boardId, noteDrag.lineId, { date: target.date, slot: target.slot, order: (list[list.length-1]?.order ?? 0) + 1 });
+    const list = goalsFor(target.date, target.slot, scope);
+    const ok = await createGoalFromNoteLine(noteDrag.boardId, noteDrag.lineId, { date: target.date, slot: target.slot, visibility, teamId: currentTeamId, order: (list[list.length-1]?.order ?? 0) + 1 });
     if (ok) showToast(`Added to ${fmtShort(target.date)} · ${target.slot}`);
     return;
   }
   const sourceId = raw;
   const source = goals.find(x => x.id === sourceId);
   if (!source) return;
-  const sameList = source.date === target.date && source.slot === target.slot;
-  let list = goalsFor(target.date, target.slot).filter(x => x.id !== sourceId);
+  const sameList = source.date === target.date && source.slot === target.slot && source.visibility === visibility;
+  let list = goalsFor(target.date, target.slot, scope).filter(x => x.id !== sourceId);
   const idx = list.findIndex(x => x.id === targetId);
   list.splice(idx, 0, source);
   const updates = list.map((g, i) => {
@@ -2208,6 +2309,8 @@ window.onGoalCardDrop = async function(e, targetId) {
     if (g.id === sourceId) {
       patch.date = target.date;
       patch.slot = target.slot;
+      patch.visibility = visibility;
+      if (scope === 'team') patch.teamId = currentTeamId;
       if (!sameList) patch.rolled = false;
     }
     return updateDoc(doc(db, 'goals', g.id), patch);
@@ -2218,41 +2321,50 @@ window.onGoalCardDrop = async function(e, targetId) {
 
 function renderWeekView(wd) {
   const today = todayStr();
+  const weekColHTML = (scope, label, icon) => `
+    <div class="goals-col ${scope}-col">
+      <div class="goals-col-hdr">${icon} ${label}</div>
+      <div class="week-grid">
+        ${wd.map(d => `
+          <div class="day-col ${d===today?'is-today':''} ${d<today?'is-past':''}">
+            <div class="day-col-hdr">
+              <div class="day-col-name">${DAY_NAMES[parseYmd(d).getDay()]}</div>
+              <div class="day-col-date">${fmtShort(d)}</div>
+              ${d<today ? '<div class="day-col-locked">🔒 Locked</div>' : ''}
+            </div>
+            <div class="day-col-body">
+              ${weekSlotHTML(d, 'morning', '☕', scope)}
+              ${weekSlotHTML(d, 'afternoon', '🛋️', scope)}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
   return `
-    <div class="week-grid">
-      ${wd.map(d => `
-        <div class="day-col ${d===today?'is-today':''} ${d<today?'is-past':''}">
-          <div class="day-col-hdr">
-            <div class="day-col-name">${DAY_NAMES[parseYmd(d).getDay()]}</div>
-            <div class="day-col-date">${fmtShort(d)}</div>
-            ${d<today ? '<div class="day-col-locked">🔒 Locked</div>' : ''}
-          </div>
-          <div class="day-col-body">
-            ${weekSlotHTML(d, 'morning', '☕')}
-            ${weekSlotHTML(d, 'afternoon', '🛋️')}
-          </div>
-        </div>
-      `).join('')}
+    <div class="goals-columns goals-columns-week">
+      ${weekColHTML('mine', 'My Goals', '🔒')}
+      ${weekColHTML('team', esc(teamName(currentTeamId)), '🌐')}
     </div>
   `;
 }
 
-function weekSlotHTML(dateStr, slot, icon) {
-  const list = goalsFor(dateStr, slot);
+function weekSlotHTML(dateStr, slot, icon, scope) {
+  const list = goalsFor(dateStr, slot, scope);
   return `
     <div>
       <div class="wk-slot-label">${icon} ${slot}</div>
       <div class="wk-slot-body"
            ondragover="onSlotDragOver(event,'${dateStr}')"
            ondragleave="onSlotDragLeave(event)"
-           ondrop="onSlotDrop(event,'${dateStr}','${slot}')">
+           ondrop="onSlotDrop(event,'${dateStr}','${slot}','${scope}')">
         ${list.length ? list.map(g => `
           <div class="wk-goal ${g.completed?'completed':''} ${g.visibility==='private'?'is-private':''} ${g.uid===(currentUser&&currentUser.uid)?'is-mine':''}"
                draggable="true"
                ondragstart="onGoalDragStart(event,'${g.id}')"
                ondragend="onGoalDragEnd(event)"
                ondragover="event.preventDefault(); event.stopPropagation();"
-               ondrop="onGoalCardDrop(event,'${g.id}')"
+               ondrop="onGoalCardDrop(event,'${g.id}','${scope}')"
                onclick="setView('today');selectDay('${dateStr}')">
             ${esc(g.text)}
             <span class="wk-goal-owner">${esc(userName(g.uid))}</span>
@@ -2281,19 +2393,31 @@ function matrixListSort(list) {
   return list.slice().sort((a, b) => (a.order ?? a.createdAtMs ?? 0) - (b.order ?? b.createdAtMs ?? 0));
 }
 
-function renderMatrixView() {
+// The unrated tray now lives inside the pinned Notes Dump panel (see
+// matrixUnratedBlockHTML / notesDumpPanelHTML) so it's visible without
+// scrolling down to the matrix — this just supplies the markup for it.
+function matrixUnratedBlockHTML() {
   const mine = myFutureGoalsForMatrix();
   const unrated = matrixListSort(mine.filter(g => !g.effort || !g.reward));
+  return `
+    <div class="matrix-unrated">
+      <div class="matrix-unrated-hdr">
+        <span class="matrix-unrated-title">Needs Rating (${unrated.length})</span>
+        <div class="matrix-unrated-line"></div>
+      </div>
+      <div class="matrix-unrated-tray"
+           ondragover="onMatrixDragOver(event)" ondragleave="onMatrixDragLeave(event)" ondrop="onMatrixTrayDrop(event)">
+        ${unrated.length ? unrated.map(g => matrixGoalHTML(g, null, null)).join('') : `<div class="matrix-unrated-empty">Nothing waiting to be rated</div>`}
+      </div>
+    </div>`;
+}
+
+function renderMatrixView() {
+  const mine = myFutureGoalsForMatrix();
   const quad = (effort, reward) => matrixListSort(mine.filter(g => g.effort === effort && g.reward === reward));
 
   return `
-    ${unrated.length ? `
-    <div class="matrix-unrated">
-      <div class="matrix-unrated-tray"
-           ondragover="onMatrixDragOver(event)" ondragleave="onMatrixDragLeave(event)" ondrop="onMatrixTrayDrop(event)">
-        ${unrated.map(g => matrixGoalHTML(g, null, null)).join('')}
-      </div>
-    </div>` : ''}
+    <div class="matrix-intro">Every future goal you own, across every team. Drag a card into a quadrant to set its priority — or use Quick Add on the left.</div>
     <div class="matrix-wrap">
       <div class="matrix-axis-y"><span class="axis-arrow">↑</span><span class="axis-word">Reward</span></div>
       <div class="matrix-main">
@@ -2487,8 +2611,13 @@ function scratchBoardHTML(m) {
 }
 
 function noteLineHTML(boardId, l) {
+  // l.checked is a plain "done" tick, completely separate from l.converted
+  // (which tracks whether it's been turned into a real goal) — you can
+  // check a line off as a quick personal checklist without ever touching
+  // the convert-to-goal flow.
   return `
-    <div class="note-line ${l.converted ? 'converted' : ''}">
+    <div class="note-line ${l.converted ? 'converted' : ''} ${l.checked ? 'checked' : ''}">
+      <button class="note-line-check ${l.checked ? 'checked' : ''}" onclick="toggleNoteLineChecked('${boardId}','${l.id}')" title="${l.checked ? 'Mark as not done' : 'Mark as done'}">${l.checked ? '✓' : ''}</button>
       <span class="note-drag-handle" draggable="true"
             ondragstart="onNoteLineDragStart(event,'${boardId}','${l.id}')" ondragend="onNoteLineDragEnd(event)"
             title="Drag onto another board, or onto a goal slot / quadrant to convert it there">⠿</span>
@@ -2500,6 +2629,14 @@ function noteLineHTML(boardId, l) {
     </div>
   `;
 }
+window.toggleNoteLineChecked = function(boardId, lineId) {
+  const m = findBoard(boardId);
+  const line = m && m.lines.find(l => l.id === lineId);
+  if (!line) return;
+  line.checked = !line.checked;
+  render();
+  scheduleNotesSave();
+};
 
 // Click a quadrant to select it (visual highlight), then just start
 // typing — no need to click into an input first. The first keystroke
@@ -2684,19 +2821,6 @@ window.showToast = msg => {
   clearTimeout(window._toastT);
   window._toastT = setTimeout(()=>t.classList.remove('show'), 2400);
 };
-</script>
-
-<!-- PWA: register the service worker so the app can install standalone
-     and load instantly (from cache) instead of blank-refreshing on
-     mobile. Registered plain (non-module) so it runs even if the
-     module script above ever fails to load. -->
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .catch(err => console.error('Service worker registration failed:', err));
-  });
-}
 </script>
 </body>
 </html>
