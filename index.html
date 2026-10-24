@@ -111,70 +111,47 @@ header {
 }
 .avatar-dropdown-item:hover { background: #fbeaea; }
 
-/* ── TEAM BAR ── */
+/* ── TEAM BAR — just the team picker + its edit button now. ── */
 .team-bar {
   background: var(--panel); border-bottom: 1px solid var(--border);
   min-height: var(--team-h); padding: .3rem 1rem;
-  display: flex; align-items: center; justify-content: space-between;
-  gap: .4rem .7rem; flex-wrap: wrap;
+  display: flex; align-items: center;
 }
-.team-info-group {
-  display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
-  min-width: 0; flex: 1 1 auto;
+.team-picker { display: flex; align-items: center; gap: .4rem; }
+.team-select {
+  font-family: 'Playfair Display', serif; font-style: italic; font-size: .85rem; color: var(--brown);
+  padding: .25rem .6rem; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--warm-white); outline: none; cursor: pointer; transition: border-color .15s;
 }
-.team-name-label { font-family: 'Playfair Display', serif; font-style: italic; font-size: .85rem; color: var(--brown); flex-shrink: 0; }
-.member-more { font-size: .58rem; color: var(--muted); font-weight: 700; background: var(--light-brown); border-radius: 8px; padding: 1px 5px; }
+.team-select:hover, .team-select:focus { border-color: var(--gold); }
+.team-edit-btn {
+  width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--warm-white); cursor: pointer; flex-shrink: 0; font-size: .72rem; color: var(--muted);
+  display: flex; align-items: center; justify-content: center; padding: 0; transition: all .15s;
+}
+.team-edit-btn:hover { color: var(--brown); border-color: var(--gold); }
 
-/* ── PRESENCE (now grouped into the team bar) ── */
+/* ── PRESENCE — lives in the header now, next to the account avatar, so
+   it reads as "who else is here" dark-chrome text, not team-bar content. ── */
 .presence-group {
   display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
-  flex-shrink: 0; padding-left: .6rem; border-left: 1px solid var(--border);
+  flex-shrink: 0; padding-left: .6rem; border-left: 1px solid rgba(250,246,240,.22);
 }
-.presence-label { font-size: .58rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 700; flex-shrink: 0; }
+.presence-label { font-size: .58rem; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); font-weight: 700; flex-shrink: 0; }
 .presence-list { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .presence-chip { display: flex; align-items: center; gap: .3rem; }
-.presence-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); flex-shrink: 0; box-shadow: 0 0 0 2px var(--success-pale); }
-.presence-name { font-size: .68rem; color: var(--brown); font-weight: 700; }
-.presence-empty { font-size: .68rem; color: var(--muted); font-style: italic; }
+.presence-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); flex-shrink: 0; box-shadow: 0 0 0 2px rgba(255,255,255,.15); }
+.presence-name { font-size: .68rem; color: var(--light-brown); font-weight: 700; }
+.presence-empty { font-size: .68rem; color: var(--light-brown); opacity: .7; font-style: italic; }
 
-@media (max-width: 760px) {
-  .presence-group { border-left: none; padding-left: 0; }
+@media (max-width: 700px) {
+  /* A dark, fixed-height header row has no room for a growing avatar
+     list once the window gets narrow — hide it rather than let it wrap
+     or clip, same spirit as the other narrow-screen simplifications. */
+  .presence-group { display: none; }
 }
 
 .team-chip-mini { font-size: .58rem; padding: 1px 7px; border-radius: 8px; background: var(--panel); border: 1px solid var(--border); color: var(--brown); font-weight: 700; white-space: nowrap; }
-
-/* ── TEAMS COLUMN (right sidebar) ── */
-.teams-sidebar-col { flex: 0 0 260px; min-width: 220px; max-width: 300px; }
-.teams-panel {
-  border: 1px solid var(--border); border-radius: 8px; background: var(--warm-white);
-  padding: .6rem; display: flex; flex-direction: column; gap: .6rem;
-}
-.teams-panel-hdr {
-  width: 100%; display: flex; align-items: center; justify-content: space-between;
-  background: none; border: none; cursor: pointer; padding: .1rem 0;
-  font-family: 'Playfair Display', serif; font-style: italic; font-size: .95rem; color: var(--brown);
-}
-.teams-panel-hdr.collapsed { justify-content: center; gap: .3rem; }
-.teams-collapse-chevron { font-size: .65rem; color: var(--muted); }
-.teams-list { display: flex; flex-direction: column; gap: .5rem; max-height: 60vh; overflow-y: auto; }
-.teams-empty { font-size: .72rem; color: var(--muted); font-style: italic; }
-.team-row {
-  border: 1px solid var(--border); border-radius: 6px; padding: .5rem .6rem; cursor: pointer;
-  background: var(--panel); transition: background .15s, border-color .15s;
-}
-.team-row:hover { background: var(--light-brown); }
-.team-row.active { border-color: var(--gold); background: #fffbf0; }
-.team-row-top { display: flex; align-items: center; justify-content: space-between; gap: .4rem; }
-.team-row-name { font-family: 'Playfair Display', serif; font-style: italic; font-size: .82rem; color: var(--brown); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.team-row-gear {
-  background: none; border: 1px solid transparent; border-radius: 50%; cursor: pointer;
-  font-size: .72rem; color: var(--muted); width: 22px; height: 22px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center; transition: all .15s;
-}
-.team-row-gear:hover { color: var(--brown); border-color: var(--border); background: var(--warm-white); }
-.team-row-avatars { display: flex; align-items: center; gap: 3px; margin-top: .35rem; }
-.team-row-desc { font-size: .62rem; color: var(--muted); font-style: italic; margin-top: .3rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.teams-panel-actions { display: flex; flex-direction: column; gap: .35rem; }
 
 /* ── NOTES DUMP — lives at the top of the Scratchboard sidebar, in the
    spot the old Quick Add box used to occupy. Dashed rust border + warm
@@ -188,7 +165,7 @@ header {
 .notes-dump-hdr {
   width: 100%; display: flex; align-items: center; gap: .5rem;
   background: none; border: none; cursor: pointer; padding: 0;
-  font-size: .62rem; letter-spacing: .08em; text-transform: uppercase; color: var(--rust); font-weight: 700;
+  font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--brown);
 }
 .notes-dump-chevron { font-size: .6rem; color: var(--muted); margin-left: auto; }
 .notes-dump-lines { display: flex; flex-direction: column; gap: .3rem; max-height: 260px; overflow-y: auto; }
@@ -321,16 +298,15 @@ header {
    purpose — the outer layout should give up its columns at the same point
    the content inside it does, not later, or you get a narrow middle range
    where the inner Day/Week columns have already stacked but the outer
-   Scratchboard/Teams columns are still awkwardly squeezing the content
-   between them). */
+   Scratchboard column is still awkwardly squeezing the content next to
+   it). */
 @media (max-width: 1100px) {
   .goals-columns { flex-direction: column; }
   .goals-columns-week .goals-col { overflow-x: visible; }
   .app-shell { flex-direction: column; }
-  .scratch-sidebar-col, .teams-sidebar-col { max-width: none; min-width: 0; width: 100%; flex: 1 1 auto; }
-  .teams-list { max-height: none; }
+  .scratch-sidebar-col { max-width: none; min-width: 0; width: 100%; flex: 1 1 auto; }
   /* The board itself (Day/Week/Matrix) is the primary content — when the
-     three panes stack, it should be the first thing you see, not buried
+     two panes stack, it should be the first thing you see, not buried
      below the Scratchboard sidebar just because that's its source order. */
   .board-content { order: -1; }
 }
@@ -462,7 +438,7 @@ header {
 .matrix-unrated-title { font-family: 'Playfair Display', serif; font-size: .9rem; color: var(--brown); }
 .matrix-unrated-line { flex: 1; height: 1px; background: var(--border); }
 .matrix-unrated-tray {
-  display: flex; gap: .5rem; overflow-x: auto; padding-bottom: .3rem;
+  display: flex; flex-direction: column; gap: .5rem;
   border-radius: 6px; transition: background .12s, outline .12s; min-height: 40px;
 }
 .matrix-unrated-tray.drag-over { background: var(--light-brown); outline: 2px dashed var(--gold); }
@@ -684,6 +660,10 @@ header {
   </div>
   <div class="header-right">
     <span class="sync-dot" id="syncDot"></span>
+    <div class="presence-group">
+      <span class="presence-label">In the app</span>
+      <div class="presence-list" id="presenceList"></div>
+    </div>
     <div class="avatar-menu-wrap">
       <button class="avatar-btn" id="avatarBtn" onclick="toggleAvatarMenu()">
         <span id="userAvatarWrap"></span>
@@ -696,17 +676,14 @@ header {
   </div>
 </header>
 
-<!-- Team bar — just the current team's name (a breadcrumb-style label) plus
-     who's online right now. Description and member roster already live on
-     this team's row in the Teams column (right side), so they're not
-     repeated here — this bar's one job is "where am I, who else is here". -->
+<!-- Team bar — a picker for which team's goals you're looking at, plus
+     quick access to that team's Board Settings. The old passive name
+     label is gone (it didn't do anything); the dropdown shows the current
+     team by itself. -->
 <div class="team-bar">
-  <div class="team-info-group">
-    <span id="teamNameLabel" class="team-name-label">Loading…</span>
-  </div>
-  <div class="presence-group">
-    <span class="presence-label">In the app</span>
-    <div class="presence-list" id="presenceList"></div>
+  <div class="team-picker">
+    <select id="teamSelect" class="team-select" onchange="onTeamSelectChange(this.value)"></select>
+    <button class="team-edit-btn" onclick="openTeamSettingsModal()" title="Board Settings">⚙</button>
   </div>
 </div>
 
@@ -735,9 +712,6 @@ header {
       <div class="scratch-sidebar" id="scratchSidebar"></div>
     </div>
     <div id="board" class="board-content"></div>
-    <div class="teams-sidebar-col">
-      <div class="teams-panel" id="teamsPanel"></div>
-    </div>
   </div>
 </main>
 
@@ -872,7 +846,6 @@ onAuthStateChanged(auth, async user => {
     }, { merge: true });
     currentTeamId = localStorage.getItem(`sb_team_${user.uid}`) || DEFAULT_TEAM_ID;
     currentView = localStorage.getItem(`sb_view_${user.uid}`) || 'today';
-    teamsColumnCollapsed = localStorage.getItem(`sb_teamscol_${user.uid}`) === '1';
     notesDumpCollapsed = localStorage.getItem(`sb_notesdump_${user.uid}`) === '1';
     document.getElementById('viewTodayBtn').classList.toggle('active', currentView === 'today');
     document.getElementById('viewWeekBtn').classList.toggle('active', currentView === 'week');
@@ -1107,73 +1080,32 @@ function teamName(teamId) {
   const id = teamId || DEFAULT_TEAM_ID;
   return (teams[id] && teams[id].name) || 'Room Planning Team';
 }
+// ── TEAM PICKER — a plain <select> of the teams you belong to, plus a
+// "＋ New Team" / "🔗 Join a Team" entry at the bottom of the list (picking
+// one opens the matching modal and snaps the select back to your current
+// team, since those aren't really team choices). Replaces the old
+// right-hand Teams column — this is the one place team identity/switching
+// lives now, so there's no passive name label duplicating it elsewhere. ──
 function renderTeamBar() {
-  const t = teams[currentTeamId];
-  document.getElementById('teamNameLabel').textContent = t ? t.name : 'Room Planning Team';
-  renderTeamsPanel();
-}
-
-// ── TEAMS COLUMN (right sidebar) — switching, member glance, and access to
-// Board Settings all live here now, replacing the old dropdown. Collapsible,
-// remembered per-user like the other view prefs. ──
-let teamsColumnCollapsed = false;
-window.toggleTeamsColumn = function() {
-  teamsColumnCollapsed = !teamsColumnCollapsed;
-  if (currentUser) localStorage.setItem(`sb_teamscol_${currentUser.uid}`, teamsColumnCollapsed ? '1' : '0');
-  renderTeamsPanel();
-};
-function renderTeamsPanel() {
-  const panel = document.getElementById('teamsPanel');
-  if (!panel) return;
-  if (teamsColumnCollapsed) {
-    panel.innerHTML = `
-      <button class="teams-panel-hdr collapsed" onclick="toggleTeamsColumn()" title="Expand Teams">
-        <span class="teams-panel-title">👥</span><span class="teams-collapse-chevron">◂</span>
-      </button>
-    `;
-    return;
-  }
   const mine = myTeamEntries();
-  panel.innerHTML = `
-    <button class="teams-panel-hdr" onclick="toggleTeamsColumn()" title="Collapse Teams">
-      <span class="teams-panel-title">👥 Teams</span><span class="teams-collapse-chevron">▸</span>
-    </button>
-    <div class="teams-list">
-      ${mine.length ? mine.map(([id, team]) => teamRowHTML(id, team)).join('') : `<div class="teams-empty">No teams yet</div>`}
-    </div>
-    <div class="teams-panel-actions">
-      <button class="gact" onclick="openCreateTeamModal()">＋ New Team</button>
-      <button class="gact" onclick="openJoinTeamModal()">🔗 Join a Team</button>
-    </div>
+  const sel = document.getElementById('teamSelect');
+  sel.innerHTML = `
+    ${mine.map(([id, team]) => `<option value="${id}" ${id === currentTeamId ? 'selected' : ''}>${esc(team.name)}</option>`).join('')}
+    <option disabled>──────────</option>
+    <option value="__new__">＋ New Team</option>
+    <option value="__join__">🔗 Join a Team</option>
   `;
 }
-function teamRowHTML(id, team) {
-  const memberUids = team.memberUids || [];
-  return `
-    <div class="team-row ${id === currentTeamId ? 'active' : ''}" onclick="switchTeam('${id}')">
-      <div class="team-row-top">
-        <span class="team-row-name">${esc(team.name)}</span>
-        <button class="team-row-gear" onclick="event.stopPropagation(); manageTeam('${id}')" title="Board Settings">⚙</button>
-      </div>
-      <div class="team-row-avatars">
-        ${memberUids.slice(0, 5).map(uid => `<span title="${esc(userName(uid))}">${avatarHTML(uid)}</span>`).join('')}
-        ${memberUids.length > 5 ? `<span class="member-more">+${memberUids.length - 5}</span>` : ''}
-      </div>
-      ${team.description ? `<div class="team-row-desc">${esc(team.description)}</div>` : ''}
-    </div>
-  `;
-}
+window.onTeamSelectChange = function(value) {
+  if (value === '__new__') { renderTeamBar(); openCreateTeamModal(); return; }
+  if (value === '__join__') { renderTeamBar(); openJoinTeamModal(); return; }
+  switchTeam(value);
+};
 window.switchTeam = function(id) {
   currentTeamId = id;
   if (currentUser) localStorage.setItem(`sb_team_${currentUser.uid}`, id);
   renderTeamBar();
   render();
-};
-// Clicking a team's gear icon switches to it (Board Settings always acts
-// on the currently selected team) and opens Board Settings in one step.
-window.manageTeam = function(id) {
-  switchTeam(id);
-  openTeamSettingsModal();
 };
 
 // ── NOTES DUMP — a titleless scratchboard that lives at the top of the
@@ -1208,7 +1140,7 @@ function notesDumpPanelHTML(inMatrix) {
   return `
     <div class="notes-dump-card">
       <button class="notes-dump-hdr" onclick="toggleNotesDump()" title="Collapse Notes Dump">
-        <span>📥 Notes Dump — quick capture, sort it later</span><span class="notes-dump-chevron">▴</span>
+        <span>📥 Notes Dump</span><span class="notes-dump-chevron">▴</span>
       </button>
       <div class="notes-dump-lines">
         ${notesDumpBoard.lines.map(l => noteLineHTML(NOTES_DUMP_ID, l)).join('')}
@@ -2533,7 +2465,7 @@ function scratchSidebarHTML(inMatrix) {
   return `
       <div id="notesDumpPanel">${notesDumpPanelHTML(inMatrix)}</div>
       <div class="notes-hdr">
-        <span class="notes-title">🗒️ Scratchboard</span>
+        <span class="notes-title">🗒️ Scratchboards</span>
       </div>
       <div class="scratch-boards-list">
         ${scratchBoards.filter(b => !b.completed).map(scratchBoardHTML).join('')}

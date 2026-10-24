@@ -8,15 +8,20 @@ should look like it was designed alongside the rest, not bolted on.
 
 ```
 .app-topbar (position: sticky, top: 0)       ← one sticky unit, nothing else is sticky
-  header                                      dark chrome: brand + account
-  .team-bar                                   current team name + who's online
+  header                                      dark chrome: brand, who's online, account
+  .team-bar                                   team picker (<select>) + Board Settings
   .toolbar                                    date nav + Day/Week/Matrix switch
 main.main
   .app-shell  (flex row, stacks to column at 1100px, .board-content first when stacked)
     .scratch-sidebar-col  (380px)             Notes Dump card + Scratchboard boards
     .board-content        (flex: 1)           Day / Week / Matrix — the primary content
-    .teams-sidebar-col    (260px)             Teams: switch + manage
 ```
+
+There is no permanent "Teams" panel — switching and managing teams both
+happen through the one `#teamSelect` dropdown + its adjacent ⚙ button in
+the team-bar. Don't resurrect a standing list-of-teams column; if teams
+need more visibility than a dropdown gives, improve the dropdown (e.g.
+grouping, search) rather than adding a second place to see them.
 
 **Rule: `.app-topbar` is for truly global chrome only — header, team-bar,
 toolbar — nothing else.** It's easy to assume "pinned" means "goes in the
@@ -72,13 +77,16 @@ never a UI color.
 ## 3. Typography
 
 - **Playfair Display (italic)** — anything that *names* something: view
-  labels (Day/Week/Matrix via `.vpill`), board titles, team names, panel
-  headers (`Scratchboard`, `Teams`, `Needs Rating`), the Day hero date.
-  This is the "proper noun" font.
+  labels (Day/Week/Matrix via `.vpill`), board titles, the team picker
+  (`.team-select`), panel headers (`Scratchboards`, `Notes Dump`,
+  `Needs Rating`), the Day hero date. All panel headers use the same
+  non-italic `.notes-title` look specifically — Notes Dump matches
+  Scratchboards exactly rather than having its own caption style, since
+  they're siblings in the same sidebar. This is the "proper noun" font.
 - **Lato** — everything else: body text, buttons, inputs, meta text.
 - Uppercase + letterspaced Lato at `.56–.68rem` is the pattern for small
-  eyebrow/caption labels (`.notes-dump-hdr`, `.presence-label`, form row
-  labels). Don't invent a different caption treatment.
+  eyebrow/caption labels (`.presence-label`, form row labels). Don't use
+  this treatment for a panel's main header — that's Playfair (above).
 
 ## 4. Spacing
 
@@ -112,12 +120,19 @@ capture spot," as opposed to `.scratch-board`'s solid border + `--panel`
 background for a named, intentional board. Don't reuse the dashed
 treatment for anything that isn't literally that kind of inbox.
 
-**Collapsible panel** (Teams column, Notes Dump): a full-width header
-button (a chevron on the right) that toggles a module-level `*Collapsed`
-boolean, persisted to `localStorage` as `sb_<name>_${uid}`, re-rendered by
-calling its own `render*Panel()`/innerHTML update rather than the full
-`render()` where possible. Match `toggleTeamsColumn`/`toggleNotesDump`
-exactly when adding another one.
+**Collapsible panel** (Notes Dump): a full-width header button (a chevron
+on the right) that toggles a module-level `*Collapsed` boolean, persisted
+to `localStorage` as `sb_<name>_${uid}`, re-rendered by calling its own
+innerHTML update rather than the full `render()` where possible. Match
+`toggleNotesDump` exactly when adding another one.
+
+**Native `<select>` picker** (`.team-select`): for "choose one of a short,
+named list and immediately act on it," a styled native `<select>` beats a
+custom dropdown/menu — less code, free keyboard/accessibility support, and
+nothing to position or click-outside-to-close. Reserve a custom popover
+menu for cases where options need rich content (avatars, descriptions)
+that a `<select>` can't render; a plain "pick one" choice like switching
+teams doesn't need that.
 
 **Pill button** (`.gact`, `.vpill`, `.pill-toggle`, `.btn`): fully rounded
 (`border-radius: 999px`), 1px border, transparent/warm-white background,
@@ -133,10 +148,10 @@ hover/active. The small prev/next day arrows next to the hero date reuse
 `.week-nav-btn` directly rather than inventing a new nav-arrow style —
 do the same for any future "step back/forward one unit" control.
 
-**Badge/count pill** (`.slot-count`, `.completed-count`, `.member-more`,
-`.today-progress`): small pill, `--light-brown` or status-tinted
-background, bold text. Reuse `.slot-count` for "N items waiting" badges
-instead of inventing a new badge class per feature.
+**Badge/count pill** (`.slot-count`, `.completed-count`, `.today-progress`):
+small pill, `--light-brown` or status-tinted background, bold text. Reuse
+`.slot-count` for "N items waiting" badges instead of inventing a new
+badge class per feature.
 
 ## 6. Icons (emoji) — one meaning per icon, app-wide
 
@@ -144,15 +159,14 @@ instead of inventing a new badge class per feature.
 |---|---|---|
 | 🛋️ | brand | — |
 | 📥 | Notes Dump (inbox / capture-now-sort-later) | — |
-| 🗒️ | Scratchboard (named boards) | Notes Dump — these are deliberately different icons even though both are "notes," because they're different mental models (a titled board vs. a single inbox) |
-| 👥 | Teams column | — |
+| 🗒️ | Scratchboards (named boards) | Notes Dump — these are deliberately different icons even though both are "notes," because they're different mental models (a titled board vs. a single inbox) |
 | 🔒 / 🌐 | private / public visibility toggle | anything else |
 | ➕ | add (new line, new goal, new board, convert note→goal) | — |
 | 📋 | copy to clipboard | — |
 | ✕ | delete | — |
 | ✓ / ✔ | done / complete / convert-confirmed | — |
-| ⚙ | settings (Board Settings via a team row) | — |
-| 🔗 | join (a team) | — |
+| ⚙ | settings (Board Settings, next to the team picker) | — |
+| 🔗 | join (a team) — an option inside the team `<select>` | — |
 | 🎉 | celebratory, "all done for the day" — used sparingly, only in `.today-progress.all-done` | don't sprinkle it elsewhere or it stops meaning anything |
 
 Before adding a new icon, check this table first — a collision (like 🗒️
@@ -167,9 +181,12 @@ elsewhere (team name, member list, description, etc.), decide which panel
 *owns* that information and have the other one link to it or omit it,
 rather than showing it twice. Current ownership:
 
-- **Team identity glance** (which team am I on) → `.team-bar` (just the
-  name).
-- **Team roster, description, switching, management** → Teams column.
+- **Team identity, switching, and management** → the `#teamSelect` picker
+  + ⚙ button in `.team-bar`. There's no separate team-identity display
+  anywhere else — a plain label repeating the selected team's name next to
+  the dropdown would just be restating what the dropdown already shows.
+- **"Who's online right now"** → the presence list in the header, next to
+  the account avatar.
 - **"Capture this before I forget, sort it later"** → Notes Dump (a loose
   line, in the Scratchboard sidebar; convert it to a real goal with ➕
   when you're ready).
