@@ -9,22 +9,24 @@ should look like it was designed alongside the rest, not bolted on.
 ```
 .app-topbar (position: sticky, top: 0)       ← one sticky unit, nothing else is sticky
   header                                      dark chrome: brand + account
-  .notes-dump-bar                             pinned quick-capture, collapsed by default
   .team-bar                                   current team name + who's online
   .toolbar                                    date nav + Day/Week/Matrix switch
 main.main
-  .app-shell  (flex row, stacks to column at 1100px)
-    .scratch-sidebar-col  (380px)             Quick Add + Scratchboard
+  .app-shell  (flex row, stacks to column at 1100px, .board-content first when stacked)
+    .scratch-sidebar-col  (380px)             Notes Dump card + Scratchboard boards
     .board-content        (flex: 1)           Day / Week / Matrix — the primary content
     .teams-sidebar-col    (260px)             Teams: switch + manage
 ```
 
-**Rule: anything "pinned" or "global" goes inside `.app-topbar`, in this
-order: header → Notes Dump → team-bar → toolbar.** Header is the one
-truly fixed brand/account row and always comes first. Don't add a new bar
-above `<header>` — that's what caused the Notes Dump placement bug. If in
-doubt, a new pinned bar goes *between* team-bar and toolbar, not above the
-header.
+**Rule: `.app-topbar` is for truly global chrome only — header, team-bar,
+toolbar — nothing else.** It's easy to assume "pinned" means "goes in the
+topbar," but a feature that's *view content* (Notes Dump, Quick Add before
+it) belongs in `.app-shell` instead, even if you want it visible on every
+view — every view already shares `.scratch-sidebar-col`, so putting it
+there gets you "visible everywhere" for free without growing the sticky
+bar. (The Notes Dump bug that prompted this guide was exactly this
+mistake: a content feature got placed in the topbar, ended up above the
+header, and looked broken.)
 
 **Rule: when `.app-shell` stacks (narrow screens), `.board-content` must
 render first.** It's the primary content; the sidebars are supporting
@@ -39,21 +41,27 @@ where the inside has already stacked but the outside hasn't caught up yet
 (or vice versa), which is what "incohesive" usually turns out to mean in
 practice.
 
+**Rule: one quick-capture entry point.** Don't let two different "jot this
+down fast" affordances coexist (this is why Quick Add was removed once
+Notes Dump covered the same need) — if a new idea for capturing input
+quickly comes up, extend Notes Dump rather than adding a second box next
+to it.
+
 ## 2. Color tokens (`:root` CSS variables)
 
 | Token | Use |
 |---|---|
 | `--cream` | page background |
 | `--warm-white` | card/panel background (sits on top of cream) |
-| `--panel` | secondary/recessed background — bars (team-bar, toolbar, Notes Dump), input wells |
+| `--panel` | secondary/recessed background — bars (team-bar, toolbar), input wells |
 | `--ink` | header background, primary text, toast background |
 | `--brown` | headings and labels set in Playfair Display |
-| `--rust` | primary action color (Add buttons, Quick Add accent, today-jump) |
+| `--rust` | primary action color (Add buttons, Notes Dump accent, today-jump) |
 | `--gold` | active/selected state, focus rings, secondary accent |
-| `--light-brown` | hover background for panels/rows |
+| `--light-brown` | hover background for panels/rows, neutral progress pill |
 | `--border` | all hairline borders |
 | `--muted` | secondary/meta text |
-| `--success` / `--success-pale` | completed state |
+| `--success` / `--success-pale` | completed state, "all done" celebration |
 | `--danger` | destructive actions, delete hover |
 
 Don't introduce a new hex color inline — if nothing in the table fits, add
@@ -65,12 +73,12 @@ never a UI color.
 
 - **Playfair Display (italic)** — anything that *names* something: view
   labels (Day/Week/Matrix via `.vpill`), board titles, team names, panel
-  headers (`Scratchboard`, `Teams`, `Notes Dump`, `Needs Rating`), day
-  labels. This is the "proper noun" font.
+  headers (`Scratchboard`, `Teams`, `Needs Rating`), the Day hero date.
+  This is the "proper noun" font.
 - **Lato** — everything else: body text, buttons, inputs, meta text.
 - Uppercase + letterspaced Lato at `.56–.68rem` is the pattern for small
-  eyebrow/caption labels (`.slot-count`-adjacent captions, `.presence-label`,
-  form row labels). Don't invent a different caption treatment.
+  eyebrow/caption labels (`.notes-dump-hdr`, `.presence-label`, form row
+  labels). Don't invent a different caption treatment.
 
 ## 4. Spacing
 
@@ -79,25 +87,37 @@ Stick to the existing scale rather than picking arbitrary values:
 between sibling panels are `.8rem`–`1.2rem`; padding inside a panel is
 `.5rem`–`.9rem`; padding inside a button/pill is `.25rem–.6rem`.
 
+**Rule: don't add a UI element "just in case" it's handy.** This app went
+through a round of removing a date-tile picker and a Quick Add box because
+they took up space without earning it — Day/Week/Matrix nav already covers
+that ground via the toolbar + the hero's prev/next arrows. Before adding a
+new persistent control, check whether an existing one already does the
+job with one more click, rather than giving it its own permanent row.
+
 ## 5. Component patterns — reuse these, don't reinvent
 
 **Panel** (`.scratch-sidebar`, `.teams-panel`, `.completed-panel`): 1px
 `--border`, `border-radius: 8px`, `--warm-white` background, `.6–.9rem`
 padding, flex column with `.5–.7rem` gap.
 
-**Bar** (`.team-bar`, `.toolbar`, `.notes-dump-bar`): full-width, flex row,
-`--panel` background, `border-bottom: 1px solid var(--border)`, `0 1rem`
-horizontal padding. These live in `.app-topbar` and never look like
-floating cards — no border-radius, no margin, no centered max-width. If a
-new pinned bar is needed, copy this pattern, not the panel pattern.
+**Bar** (`.team-bar`, `.toolbar`): full-width, flex row, `--panel`
+background, `border-bottom: 1px solid var(--border)`, `0 1rem` horizontal
+padding. These live in `.app-topbar` and never look like floating cards —
+no border-radius, no margin, no centered max-width.
+
+**Dashed "inbox" card** (`.notes-dump-card`): the one exception to the
+solid-border panel look — `border: 1px dashed var(--rust)` on a warm tint
+(`#fff7ef`), no title input. Reserved for "this is a quick/temporary
+capture spot," as opposed to `.scratch-board`'s solid border + `--panel`
+background for a named, intentional board. Don't reuse the dashed
+treatment for anything that isn't literally that kind of inbox.
 
 **Collapsible panel** (Teams column, Notes Dump): a full-width header
-button (`justify-content: space-between`, a chevron on the right,
-Playfair italic label) that toggles a module-level `*Collapsed` boolean,
-persisted to `localStorage` as `sb_<name>_${uid}`, re-rendered by calling
-its own `render*Panel()`/innerHTML update rather than the full `render()`
-where possible. Match `toggleTeamsColumn`/`toggleNotesDump` exactly when
-adding another one.
+button (a chevron on the right) that toggles a module-level `*Collapsed`
+boolean, persisted to `localStorage` as `sb_<name>_${uid}`, re-rendered by
+calling its own `render*Panel()`/innerHTML update rather than the full
+`render()` where possible. Match `toggleTeamsColumn`/`toggleNotesDump`
+exactly when adding another one.
 
 **Pill button** (`.gact`, `.vpill`, `.pill-toggle`, `.btn`): fully rounded
 (`border-radius: 999px`), 1px border, transparent/warm-white background,
@@ -107,14 +127,16 @@ make a new button shape — square/slightly-rounded buttons don't exist
 anywhere else in this app.
 
 **Round icon button** (`.note-del-btn`, `.team-row-gear`, `.goal-check`,
-`.note-line-check`, `.board-visibility-btn`): circular, border + muted
-icon color by default, fills or changes border color on hover/active.
+`.note-line-check`, `.board-visibility-btn`, `.week-nav-btn`): circular,
+border + muted icon color by default, fills or changes border color on
+hover/active. The small prev/next day arrows next to the hero date reuse
+`.week-nav-btn` directly rather than inventing a new nav-arrow style —
+do the same for any future "step back/forward one unit" control.
 
-**Badge/count pill** (`.slot-count`, `.completed-count`, `.member-more`):
-small pill, `--light-brown` or status-tinted background, `.58–.6rem` bold
-text. Reuse `.slot-count` for "N items waiting" style badges (this is what
-the Notes Dump's collapsed-state count uses) instead of inventing a new
-badge class per feature.
+**Badge/count pill** (`.slot-count`, `.completed-count`, `.member-more`,
+`.today-progress`): small pill, `--light-brown` or status-tinted
+background, bold text. Reuse `.slot-count` for "N items waiting" badges
+instead of inventing a new badge class per feature.
 
 ## 6. Icons (emoji) — one meaning per icon, app-wide
 
@@ -131,6 +153,7 @@ badge class per feature.
 | ✓ / ✔ | done / complete / convert-confirmed | — |
 | ⚙ | settings (Board Settings via a team row) | — |
 | 🔗 | join (a team) | — |
+| 🎉 | celebratory, "all done for the day" — used sparingly, only in `.today-progress.all-done` | don't sprinkle it elsewhere or it stops meaning anything |
 
 Before adding a new icon, check this table first — a collision (like 🗒️
 briefly being used for both Scratchboard *and* Notes Dump) is exactly the
@@ -147,26 +170,57 @@ rather than showing it twice. Current ownership:
 - **Team identity glance** (which team am I on) → `.team-bar` (just the
   name).
 - **Team roster, description, switching, management** → Teams column.
-- **"What should I do right now"** → Quick Add (creates a real dated
-  goal immediately).
 - **"Capture this before I forget, sort it later"** → Notes Dump (a loose
-  line, not yet a goal).
+  line, in the Scratchboard sidebar; convert it to a real goal with ➕
+  when you're ready).
 - **"Notes that belong together under a topic"** → Scratchboard boards.
+- **"How am I doing today"** → the `.today-progress` pill under the Day
+  hero — don't add a second progress indicator elsewhere for the same day.
 
 If a new feature's data already has a home in this list, extend that
 home — don't create a sixth place to look for the same kind of thing.
 
-## 8. Checklist before shipping a new UI piece
+## 8. Fun, efficient micro-interactions
 
-1. Does it belong in `.app-topbar` (global/pinned) or `.app-shell`
-   (view-scoped)? Place it accordingly, in the existing stacking order.
-2. Does it reuse an existing panel/bar/button/badge pattern from §5? If
-   you're writing new CSS for a border+radius+padding combo, check it's
-   not already one of these first.
+The app's job is to make tracking work feel light, not like data entry.
+Two small patterns do most of that work — reuse them rather than adding a
+third:
+
+- **`popCheck(el)`** — a shared helper (defined once, next to
+  `toggleGoal`) that plays a quick scale-pop (`@keyframes checkPop`) on
+  any checkbox the instant it's checked. Both `.goal-check` and
+  `.note-line-check` use it. Because `render()` does a full innerHTML
+  rebuild, this only works by calling `popCheck` on the *specific element*
+  right after a user action — either the click's `event.currentTarget`
+  (if the UI update is async, e.g. waiting on Firestore) or a freshly
+  rendered element looked up by id (if `render()` already ran
+  synchronously). Don't try to do this with a CSS class baked into the
+  template string — it'll replay on every unrelated re-render instead of
+  just the action that earned it.
+- **`.today-progress` pill** — a one-line "N of M done" readout under the
+  Day hero, switching to `--success-pale` + a 🎉 once everything's
+  checked off. This is the app's one "progress/celebration" surface —
+  if a future feature wants to show completion state, point it at this
+  pill (e.g. extend `todayProgress()`) rather than building a second one.
+
+Keep both subtle: a quick pop and a text pill, not confetti or sound.
+This is a work-tracking tool first — "fun" here means satisfying and
+low-friction, not distracting.
+
+## 9. Checklist before shipping a new UI piece
+
+1. Does it belong in `.app-topbar` (truly global chrome) or `.app-shell`
+   (view content, even if "always visible")? See the rule in §1 — when in
+   doubt, it's `.app-shell`.
+2. Does it reuse an existing panel/bar/card/button/badge pattern from §5?
+   If you're writing new CSS for a border+radius+padding combo, check
+   it's not already one of these first.
 3. Does its icon already mean something else (§6)?
 4. Does it duplicate information another panel already owns (§7)?
-5. Does it have a sane place to go when the layout stacks on narrow
+5. Is it actually earning its permanent screen space, or would it work
+   just as well as one more click on something that already exists (§4)?
+6. Does it have a sane place to go when the layout stacks on narrow
    screens, and does `.board-content` still render first?
-6. Run `node --check` on the extracted `<script type="module">` body and
+7. Run `node --check` on the extracted `<script type="module">` body and
    a div/span/button open-close tag count before calling it done — this
    has caught real mistakes in past updates.
