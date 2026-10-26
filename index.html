@@ -282,13 +282,17 @@ header {
 /* Personal and Team goals, always shown side by side — a goal lives in
    exactly one column (private → My Goals, public → the selected team),
    so there's never overlap between them. */
-.goals-columns { display: flex; gap: 1.2rem; align-items: flex-start; }
+.goals-columns {
+  display: flex; gap: 1.2rem; align-items: flex-start;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--warm-white);
+  padding: .8rem .9rem;
+}
 .goals-col { flex: 1; min-width: 0; }
 .goals-col-hdr {
+  display: flex; align-items: center; gap: .3rem; min-height: 1.7rem;
   font-family: 'Playfair Display', serif; font-style: italic; font-size: .95rem;
   color: var(--brown); margin-bottom: .6rem; padding-bottom: .3rem; border-bottom: 2px solid var(--border);
 }
-.goals-col-hdr-team { display: flex; align-items: center; gap: .3rem; }
 .goals-columns-week { align-items: stretch; }
 .goals-columns-week .goals-col { min-width: 0; overflow-x: auto; }
 /* This is the same breakpoint as the outer 3-pane app-shell below it (on
@@ -398,13 +402,15 @@ header {
   transition: border-color .15s;
 }
 .add-goal-input:focus { border-color: var(--gold); border-style: solid; background: var(--warm-white); }
-.add-goal-btn {
-  background: var(--rust); color: #fff; border: none; border-radius: 999px; padding: .5rem 1.1rem;
-  font-size: .78rem; font-weight: 700; cursor: pointer; flex-shrink: 0; transition: background .15s;
+/* Small icon-only add button — same circular shape/hover language as the
+   Scratchboard's note-convert-btn (➕), instead of a big rust "Add" pill. */
+.add-goal-icon-btn {
+  background: none; border: 1px solid var(--border); border-radius: 999px; cursor: pointer;
+  font-size: .72rem; width: 32px; height: 32px; flex-shrink: 0; color: var(--muted); transition: all .15s;
+  display: flex; align-items: center; justify-content: center;
 }
-.add-goal-btn:hover { background: #a04415; }
+.add-goal-icon-btn:hover { border-color: var(--gold); color: var(--gold); }
 .empty-slot { font-size: .78rem; color: var(--muted); font-style: italic; padding: .3rem 0 .6rem; }
-.add-goal-note { font-size: .62rem; color: var(--muted); font-style: italic; margin-top: .25rem; }
 .add-goal-locked { font-size: .74rem; color: var(--muted); font-style: italic; padding: .5rem .1rem; opacity: .8; }
 
 /* ── WEEK VIEW ── */
@@ -476,7 +482,11 @@ header {
   flex: 0 0 380px; min-width: 280px; max-width: 420px;
   display: flex; flex-direction: column; gap: .8rem;
 }
-.scratch-sidebar {
+/* .scratch-sidebar is just a layout column now (Notes Dump card, then the
+   Scratchboards panel below it) — the solid box lives on .scratchboards-panel
+   alone, not around Notes Dump too. */
+.scratch-sidebar { display: flex; flex-direction: column; gap: .8rem; }
+.scratchboards-panel {
   border: 1px solid var(--border); border-radius: 8px; background: var(--warm-white);
   padding: .8rem .9rem; display: flex; flex-direction: column; gap: .7rem;
 }
@@ -1071,8 +1081,8 @@ function teamName(teamId) {
 function teamColHdrHTML() {
   const mine = myTeamEntries();
   return `
-    <div class="goals-col-hdr goals-col-hdr-team">
-      <span>🌐</span>
+    <div class="goals-col-hdr">
+      <span>🌐 Team Goals</span>
       <select id="teamSelect" class="team-select" onchange="onTeamSelectChange(this.value)">
         ${mine.map(([id, team]) => `<option value="${id}" ${id === currentTeamId ? 'selected' : ''}>${esc(team.name)}</option>`).join('')}
         <option disabled>──────────</option>
@@ -1539,9 +1549,22 @@ async function createGoalFromNoteLine(boardId, lineId, extra) {
 }
 
 window.convertNoteLineToGoal = async function(boardId, lineId) {
-  const date = isWeekend(todayStr()) ? nextWeekday(todayStr()) : todayStr();
+  // Land it wherever you're actually looking: the selected day in Day
+  // view, today's weekday if it's in the displayed week in Week view
+  // (otherwise that week's Monday), or — only in Matrix, which has no
+  // single "day" to land on — today, unrated, so it shows in the Needs
+  // Rating tray exactly like before.
+  let date;
+  if (currentView === 'today') {
+    date = selectedDate;
+  } else if (currentView === 'week') {
+    const wd = weekDates();
+    date = wd.includes(todayStr()) ? todayStr() : wd[0];
+  } else {
+    date = isWeekend(todayStr()) ? nextWeekday(todayStr()) : todayStr();
+  }
   const ok = await createGoalFromNoteLine(boardId, lineId, { date, slot: 'morning' });
-  if (ok) showToast('Added as a goal — drag it into a quadrant when ready');
+  if (ok) showToast(currentView === 'matrix' ? 'Added — rate it in a quadrant when ready' : 'Added to your goals');
 };
 
 // Dragging a note line's handle: carries "note:<boardId>:<lineId>" so drop
@@ -1865,9 +1888,8 @@ function slotSectionHTML(dateStr, slot, icon, label, scope) {
     : `
       <div class="add-goal-row">
         <input class="add-goal-input" id="add-${scope}-${dateStr}-${slot}" placeholder="Add ${article(label)} ${label.toLowerCase()} goal…" onkeydown="addGoalKeydown(event,'${dateStr}','${slot}','${scope}')"/>
-        <button class="add-goal-btn" onclick="addGoal('${dateStr}','${slot}','${scope}')">Add</button>
+        <button class="add-goal-icon-btn" onclick="addGoal('${dateStr}','${slot}','${scope}')" title="Add goal">➕</button>
       </div>
-      <div class="add-goal-note">${scope === 'mine' ? '🔒 Private — only you.' : '🌐 Public — visible to the team.'}</div>
     `;
   return `
     <div class="slot-section">
@@ -2445,14 +2467,16 @@ function completedBoardHTML(b) {
 function scratchSidebarHTML(inMatrix) {
   return `
       <div id="notesDumpPanel">${notesDumpPanelHTML(inMatrix)}</div>
-      <div class="notes-hdr">
-        <span class="notes-title">🗒️ Scratchboards</span>
+      <div class="scratchboards-panel">
+        <div class="notes-hdr">
+          <span class="notes-title">🗒️ Scratchboards</span>
+        </div>
+        <div class="scratch-boards-list">
+          ${scratchBoards.filter(b => !b.completed).map(scratchBoardHTML).join('')}
+        </div>
+        <button class="gact" onclick="addScratchBoard()">＋ Add Board</button>
+        ${sharedBoardsSectionHTML()}
       </div>
-      <div class="scratch-boards-list">
-        ${scratchBoards.filter(b => !b.completed).map(scratchBoardHTML).join('')}
-      </div>
-      <button class="gact" onclick="addScratchBoard()">＋ Add Board</button>
-      ${sharedBoardsSectionHTML()}
   `;
 }
 

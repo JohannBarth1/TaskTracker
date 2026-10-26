@@ -62,6 +62,15 @@ Notes Dump covered the same need) — if a new idea for capturing input
 quickly comes up, extend Notes Dump rather than adding a second box next
 to it.
 
+**Rule: side-by-side column headers must share one height.** `.goals-col-hdr`
+is a fixed-`min-height` flex row specifically so "My Goals" and "Team
+Goals" line up — and so does their border-bottom divider — even though one
+is plain text and the other holds a `<select>` + a button. If a future
+column header needs richer content than plain text, give `.goals-col-hdr`
+the content via flex children rather than swapping in a taller custom
+element, or the two headers (and the lists below them) will drift out of
+alignment.
+
 ## 2. Color tokens (`:root` CSS variables)
 
 | Token | Use |
@@ -121,9 +130,14 @@ explaining, fix the control; a `title=""` tooltip is almost always enough.
 
 ## 5. Component patterns — reuse these, don't reinvent
 
-**Panel** (`.scratch-sidebar`, `.teams-panel`, `.completed-panel`): 1px
+**Panel** (`.scratchboards-panel`, `.goals-columns`, `.completed-panel`): 1px
 `--border`, `border-radius: 8px`, `--warm-white` background, `.6–.9rem`
-padding, flex column with `.5–.7rem` gap.
+padding. `.scratch-sidebar` itself is *not* a panel — it's a plain flex
+column holding the Notes Dump card and the Scratchboards panel as two
+separate siblings, so Notes Dump's dashed card never ends up nested inside
+another box. Follow that same split for anything else added to that
+sidebar: a loose "quick capture" thing gets its own card, a "collection of
+named things" gets its own panel — don't merge them into one outer box.
 
 **Bar** (`.toolbar`): full-width, flex row, `--panel` background,
 `border-bottom: 1px solid var(--border)`, `0 1rem` horizontal padding.
@@ -163,12 +177,15 @@ neutral actions, rust for destructive-adjacent, danger for delete). Don't
 make a new button shape — square/slightly-rounded buttons don't exist
 anywhere else in this app.
 
-**Round icon button** (`.note-del-btn`, `.team-row-gear`, `.goal-check`,
-`.note-line-check`, `.board-visibility-btn`, `.week-nav-btn`): circular,
-border + muted icon color by default, fills or changes border color on
-hover/active. The small prev/next day arrows next to the hero date reuse
-`.week-nav-btn` directly rather than inventing a new nav-arrow style —
-do the same for any future "step back/forward one unit" control.
+**Round icon button** (`.note-del-btn`, `.note-convert-btn`,
+`.add-goal-icon-btn`, `.team-row-gear`, `.goal-check`, `.note-line-check`,
+`.board-visibility-btn`, `.week-nav-btn`): circular, border + muted icon
+color by default, fills or changes border color on hover/active. The small
+prev/next day arrows next to the hero date reuse `.week-nav-btn` directly;
+the Day view's "add a goal" button reuses the exact look of
+`.note-convert-btn` (the Scratchboard's ➕) rather than a big filled
+"Add" pill — a single-icon action gets a round icon button, not a labeled
+pill, regardless of which part of the app it's in.
 
 **Badge/count pill** (`.slot-count`, `.completed-count`, `.today-progress`):
 small pill, `--light-brown` or status-tinted background, bold text. Reuse
