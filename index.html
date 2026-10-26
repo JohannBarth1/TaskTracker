@@ -118,14 +118,18 @@ header {
 .team-picker { display: flex; align-items: center; gap: .4rem; }
 .team-select {
   font-family: 'Playfair Display', serif; font-style: italic; font-size: .9rem; color: var(--brown);
-  padding: .15rem .5rem; border: 1px solid transparent; border-radius: 999px;
+  /* Fixed height + line-height (not just padding) so this lines up exactly
+     with the plain-text "My Goals" header next to it, regardless of the
+     browser's own native select-box sizing — see .goals-col-hdr, which
+     also clips to a fixed height as a second safety net for the same reason. */
+  height: 1.5rem; line-height: 1.5rem; padding: 0 .4rem; border: 1px solid transparent; border-radius: 999px;
   background: transparent; outline: none; cursor: pointer; transition: all .15s;
   max-width: 100%;
 }
 .team-select:hover, .team-select:focus { border-color: var(--border); background: var(--warm-white); }
 .team-edit-btn {
-  width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border);
-  background: var(--warm-white); cursor: pointer; flex-shrink: 0; font-size: .68rem; color: var(--muted);
+  width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--warm-white); cursor: pointer; flex-shrink: 0; font-size: .64rem; color: var(--muted);
   display: flex; align-items: center; justify-content: center; padding: 0; transition: all .15s;
 }
 .team-edit-btn:hover { color: var(--brown); border-color: var(--gold); }
@@ -195,6 +199,7 @@ header {
   scrollbar-width: none;
 }
 .toolbar::-webkit-scrollbar { display: none; }
+.toolbar-nav { display: flex; align-items: center; gap: .6rem; }
 .week-nav-btn {
   width: 26px; height: 26px; border-radius: 50%;
   border: 1px solid var(--border); background: var(--warm-white); color: var(--brown);
@@ -289,7 +294,7 @@ header {
 }
 .goals-col { flex: 1; min-width: 0; }
 .goals-col-hdr {
-  display: flex; align-items: center; gap: .3rem; min-height: 1.7rem;
+  display: flex; align-items: center; gap: .3rem; height: 2rem; overflow: hidden;
   font-family: 'Playfair Display', serif; font-style: italic; font-size: .95rem;
   color: var(--brown); margin-bottom: .6rem; padding-bottom: .3rem; border-bottom: 2px solid var(--border);
 }
@@ -318,14 +323,15 @@ header {
    is hidden in this view instead. */
 .matrix-completed-panel { margin-top: 1rem; }
 
-/* ── TODAY VIEW ── */
-.today-hero { text-align: center; margin-bottom: 1.1rem; }
-.today-hero-nav { display: flex; align-items: center; justify-content: center; gap: .7rem; }
-.today-hero-day { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1.7rem; color: var(--brown); }
-.today-hero-sub { font-size: .62rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin-top: .1rem; }
+/* ── TODAY VIEW ──
+   The big centered hero (date + its own prev/next arrows + progress) is
+   gone — that nav now lives in the toolbar (.toolbar-nav, built by
+   toolbarNavHTML()) so Day view's goals-columns starts right at the top
+   of board-content, level with the Notes Dump card in the sidebar next
+   to it, instead of being pushed down by a tall header block. */
 .today-progress {
-  display: inline-block; margin-top: .5rem; padding: .2rem .7rem; border-radius: 999px;
-  font-size: .68rem; font-weight: 700; color: var(--brown); background: var(--light-brown);
+  display: inline-flex; align-items: center; padding: .2rem .7rem; border-radius: 999px;
+  font-size: .68rem; font-weight: 700; color: var(--brown); background: var(--light-brown); flex-shrink: 0;
 }
 .today-progress.all-done { background: var(--success-pale); color: var(--success); }
 
@@ -687,12 +693,13 @@ header {
   </div>
 </header>
 
-<!-- Toolbar — just date navigation now; the team picker lives in the Team
-     goals column header, and the view switch moved up into the header. -->
+<!-- Toolbar — date navigation only; the team picker lives in the Team
+     goals column header, and the view switch moved up into the header.
+     The nav itself is view-aware (day-step in Day view, week-step in Week
+     view) — see toolbarNavHTML() — so it's built fresh by render() rather
+     than static markup. -->
 <div class="toolbar">
-  <button class="week-nav-btn" onclick="shiftWeek(-1)" title="Previous week">‹</button>
-  <div class="week-label" id="weekLabel"></div>
-  <button class="week-nav-btn" onclick="shiftWeek(1)" title="Next week">›</button>
+  <div class="toolbar-nav" id="toolbarNav"></div>
   <button class="today-jump" id="todayJumpBtn" onclick="jumpToToday()">Today</button>
 </div>
 
@@ -1683,7 +1690,8 @@ function goalsFor(dateStr, slot, scope) {
 // A quick "how am I doing today" glance — counts everything on this date
 // across both the Personal and Team columns (same membership rules as
 // goalsFor, just not split by slot). Drives the progress pill in the
-// today-hero so tracking your day stays efficient: one glance, no reading.
+// toolbar (see toolbarNavHTML) so tracking your day stays efficient: one
+// glance, no reading.
 function todayProgress(dateStr) {
   const myUid = currentUser && currentUser.uid;
   const relevant = goals.filter(g => g.date === dateStr && (
@@ -1787,25 +1795,50 @@ window.shiftDay = function(n) {
   render();
 };
 
+// The toolbar's date nav is view-aware: Day view steps one weekday at a
+// time (plus the day's progress pill, right next to the date); Week view
+// steps a whole week; Matrix has no date nav at all (it spans every future
+// day at once). Built fresh by render() rather than static markup, same
+// as teamColHdrHTML() — no separate "keep this label in sync" step to
+// remember elsewhere.
+function toolbarNavHTML(wd) {
+  if (currentView === 'matrix') return '';
+  if (currentView === 'week') {
+    let weekSuffix;
+    if (weekOffset === 0) weekSuffix = 'This Week';
+    else if (weekOffset === -1) weekSuffix = 'Last Week';
+    else if (weekOffset === 1) weekSuffix = 'Next Week';
+    else weekSuffix = weekOffset < 0 ? `${-weekOffset} Weeks Ago` : `${weekOffset} Weeks From Now`;
+    return `
+      <button class="week-nav-btn" onclick="shiftWeek(-1)" title="Previous week">‹</button>
+      <div class="week-label">${fmtShort(wd[0])} – ${fmtShort(wd[4])} · ${weekSuffix}</div>
+      <button class="week-nav-btn" onclick="shiftWeek(1)" title="Next week">›</button>
+    `;
+  }
+  const todayActual = todayStr();
+  const suffix = selectedDate === todayActual ? '' : (selectedDate < todayActual ? ' · Past' : ' · Upcoming');
+  const prog = todayProgress(selectedDate);
+  const allDone = prog.total > 0 && prog.done === prog.total;
+  return `
+    <button class="week-nav-btn" onclick="shiftDay(-1)" title="Previous day">‹</button>
+    <div class="week-label">${fmtLong(selectedDate)}${suffix}</div>
+    <button class="week-nav-btn" onclick="shiftDay(1)" title="Next day">›</button>
+    ${prog.total ? `<div class="today-progress ${allDone ? 'all-done' : ''}">${prog.done} of ${prog.total} done${allDone ? ' 🎉' : ''}</div>` : ''}
+  `;
+}
+
 // ── RENDER ────────────────────────────────────────────────
 function render() {
   const wd = weekDates(); // always exactly Mon..Fri of the displayed week
-  let weekSuffix;
-  if (weekOffset === 0) weekSuffix = 'This Week';
-  else if (weekOffset === -1) weekSuffix = 'Last Week';
-  else if (weekOffset === 1) weekSuffix = 'Next Week';
-  else weekSuffix = weekOffset < 0 ? `${-weekOffset} Weeks Ago` : `${weekOffset} Weeks From Now`;
-  document.getElementById('weekLabel').textContent =
-    `${fmtShort(wd[0])} – ${fmtShort(wd[4])} · ${weekSuffix}`;
 
   if (currentView === 'today') {
     if (!wd.includes(selectedDate)) selectedDate = (weekOffset === 0 && !isWeekend(todayStr())) ? todayStr() : wd[0];
   }
 
+  document.getElementById('toolbarNav').innerHTML = toolbarNavHTML(wd);
+
   // Date navigation doesn't apply to the Matrix view (it spans all future days at once).
   const dateNavRelevant = currentView !== 'matrix';
-  document.querySelectorAll('.week-nav-btn').forEach(b => b.style.display = dateNavRelevant ? '' : 'none');
-  document.getElementById('weekLabel').style.display = dateNavRelevant ? '' : 'none';
   // "Today" jump button only shows when date-nav is relevant AND you're not already looking at today.
   const atHome = currentView === 'today' && weekOffset === 0 && selectedDate === todayStr();
   document.getElementById('todayJumpBtn').style.display = (dateNavRelevant && !atHome) ? '' : 'none';
@@ -1848,21 +1881,7 @@ function render() {
 }
 
 function renderTodayView(dateStr, wd) {
-  const todayActual = todayStr();
-  const viewingPast = dateStr < todayActual;
-  const prog = todayProgress(dateStr);
-  const allDone = prog.total > 0 && prog.done === prog.total;
-
   return `
-    <div class="today-hero">
-      <div class="today-hero-nav">
-        <button class="week-nav-btn" onclick="shiftDay(-1)" title="Previous day">‹</button>
-        <div class="today-hero-day">${fmtLong(dateStr)}</div>
-        <button class="week-nav-btn" onclick="shiftDay(1)" title="Next day">›</button>
-      </div>
-      <div class="today-hero-sub">${dateStr === todayActual ? 'Today' : (viewingPast ? 'Past day' : 'Upcoming')}</div>
-      ${prog.total ? `<div class="today-progress ${allDone ? 'all-done' : ''}">${prog.done} of ${prog.total} done${allDone ? ' — nice work! 🎉' : ''}</div>` : ''}
-    </div>
     <div class="goals-columns">
       <div class="goals-col personal-col">
         <div class="goals-col-hdr">🔒 My Goals</div>

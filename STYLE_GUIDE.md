@@ -10,12 +10,22 @@ should look like it was designed alongside the rest, not bolted on.
 .app-topbar (position: sticky, top: 0)       ← one sticky unit, nothing else is sticky
   header                                      ONE row: brand + view switch (left),
                                                who's online + account (right)
-  .toolbar                                    date nav only
+  .toolbar                                    date nav, view-aware (see toolbarNavHTML())
 main.main
   .app-shell  (flex row, stacks to column at 1100px, .board-content first when stacked)
-    .scratch-sidebar-col  (380px)             Notes Dump card + Scratchboard boards
+    .scratch-sidebar-col  (380px)             Notes Dump card + Scratchboards panel
     .board-content        (flex: 1)           Day / Week / Matrix — the primary content
 ```
+
+The toolbar's date nav isn't static markup — `toolbarNavHTML()` swaps its
+content by view: day-step arrows + the day's progress pill in Day view,
+week-step arrows in Week view, nothing in Matrix (same "team picker"
+reasoning as above — date-stepping only means something in the views that
+have a single displayed date/week). There's no more "big hero" block
+above Day view's goal columns; that's exactly what used to push
+`.board-content` down out of alignment with the Notes Dump card next to
+it, which is why it moved up into the toolbar instead of staying as page
+content.
 
 There is no standalone team-bar and no permanent "Teams" panel. The team
 picker (`#teamSelect` + its ⚙ Board Settings button) lives *inside the
@@ -49,12 +59,12 @@ tools. Use `order: -1` on `.board-content` inside the stacking media query
 rather than reordering the HTML (the HTML order matters for the
 side-by-side desktop layout).
 
-**Rule: the outer 3-pane stack and any inner multi-column layout (like
-Day/Week's Personal/Team columns) should collapse at the *same* breakpoint
-(`1100px`), not different ones.** Otherwise you get a dead middle range
-where the inside has already stacked but the outside hasn't caught up yet
-(or vice versa), which is what "incohesive" usually turns out to mean in
-practice.
+**Rule: the outer sidebar/board stack and any inner multi-column layout
+(like Day/Week's Personal/Team columns) should collapse at the *same*
+breakpoint (`1100px`), not different ones.** Otherwise you get a dead
+middle range where the inside has already stacked but the outside hasn't
+caught up yet (or vice versa), which is what "incohesive" usually turns
+out to mean in practice.
 
 **Rule: one quick-capture entry point.** Don't let two different "jot this
 down fast" affordances coexist (this is why Quick Add was removed once
@@ -62,14 +72,19 @@ Notes Dump covered the same need) — if a new idea for capturing input
 quickly comes up, extend Notes Dump rather than adding a second box next
 to it.
 
-**Rule: side-by-side column headers must share one height.** `.goals-col-hdr`
-is a fixed-`min-height` flex row specifically so "My Goals" and "Team
-Goals" line up — and so does their border-bottom divider — even though one
-is plain text and the other holds a `<select>` + a button. If a future
-column header needs richer content than plain text, give `.goals-col-hdr`
-the content via flex children rather than swapping in a taller custom
-element, or the two headers (and the lists below them) will drift out of
-alignment.
+**Rule: side-by-side column headers must share one height — use a fixed
+`height` + `overflow: hidden`, not `min-height`.** `.goals-col-hdr` sets an
+explicit `height` specifically so "My Goals" and "Team Goals" line up —
+and so does their border-bottom divider — even though one is plain text
+and the other holds a `<select>` + a button. `min-height` alone isn't
+enough: a native `<select>` renders taller than a line of plain text by an
+amount that varies per browser, so the row with the select still grows
+past a `min-height` and pushes its divider down. Give the inner control
+(here, `.team-select`) an explicit `height`/`line-height` too — don't rely
+on padding alone to size it — and keep `overflow: hidden` on the header as
+a safety net. If a future column header needs richer content than plain
+text, follow this same two-part fix rather than reaching for `min-height`
+again.
 
 ## 2. Color tokens (`:root` CSS variables)
 
