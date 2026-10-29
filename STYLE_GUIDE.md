@@ -12,7 +12,7 @@ should look like it was designed alongside the rest, not bolted on.
                                                who's online + account (right)
   .toolbar                                    date nav, view-aware (see toolbarNavHTML())
 main.main
-  .app-shell  (flex row, stacks to column at 1100px, .board-content first when stacked)
+  .app-shell  (flex row, stacks to column at 1100px, sidebar first when stacked)
     .scratch-sidebar-col  (380px)             Notes Dump card + Scratchboards panel
     .board-content        (flex: 1)           Day / Week / Matrix — the primary content
 ```
@@ -53,11 +53,17 @@ regardless of view or team: the brand, the view switch, and account-level
 status (who's online, your avatar) — nothing that depends on which team or
 which list you're looking at.
 
-**Rule: when `.app-shell` stacks (narrow screens), `.board-content` must
-render first.** It's the primary content; the sidebars are supporting
-tools. Use `order: -1` on `.board-content` inside the stacking media query
-rather than reordering the HTML (the HTML order matters for the
-side-by-side desktop layout).
+**Rule: when `.app-shell` stacks (narrow screens/mobile), the sidebar
+renders first, in this exact order: Notes Dump, then Scratchboards, then
+the goal lists (`.board-content`).** This is deliberate — on a phone, the
+things you jot down fast and the boards you're actively working belong
+above the read of Day/Week/Matrix content. `.scratch-sidebar-col` already
+renders Notes Dump above the Scratchboards panel, and because the whole
+sidebar column comes before `.board-content` in the HTML, no `order`
+override is needed in the stacking media query at all — source order
+already matches the wanted stacked order. Don't add an `order: -1` (or
+any other reorder) to `.board-content` to "promote" it on mobile; that was
+tried in an earlier round and was explicitly reversed.
 
 **Rule: the outer sidebar/board stack and any inner multi-column layout
 (like Day/Week's Personal/Team columns) should collapse at the *same*
@@ -171,6 +177,29 @@ on the right) that toggles a module-level `*Collapsed` boolean, persisted
 to `localStorage` as `sb_<name>_${uid}`, re-rendered by calling its own
 innerHTML update rather than the full `render()` where possible. Match
 `toggleNotesDump` exactly when adding another one.
+
+**Drag-to-reorder list item** (note lines inside a Scratchboard): each row
+(`.note-line`) is both a drop target and, via its `.note-drag-handle`, a
+drag source. Two layers of drop handler cooperate rather than compete:
+`onBoardDrop`/`onBoardDragOver`/`onBoardDragLeave` on the board's line
+list handle drops that land on empty space (append to the end — this also
+covers reordering within a single board down to "move to the end"), while
+`onNoteLineDragOver`/`onNoteLineDragLeave`/`onNoteLineDrop` on each
+individual `.note-line` handle drops that land directly on another line
+(splice out, splice back in at that exact index — works for both
+same-board reorder and cross-board move with no separate branch, because
+`findBoard()` returns the live board object by reference, so when
+source and target are the same board, splicing out then back in just
+reorders that one array in place). The per-line handlers call
+`e.stopPropagation()` so a drop that lands on a line doesn't also
+trigger the board-level "append to end" handler. Both layers share
+`parseNoteDrag(raw)` to read the `"note:<boardId>:<lineId>"` payload, and
+both show the same `.note-line.drag-over` dashed-gold outline as drop-target
+feedback. When adding a new reorderable list elsewhere in the app, follow
+this same two-layer pattern rather than only handling the container-level
+drop — a container-only handler can't disambiguate between "append to end"
+and "insert here," which is why in-board reordering didn't work until this
+was added.
 
 **Native `<select>` picker** (`.team-select`): for "choose one of a short,
 named list and immediately act on it," a styled native `<select>` beats a
@@ -294,7 +323,8 @@ low-friction, not distracting.
 5. Is it actually earning its permanent screen space, or would it work
    just as well as one more click on something that already exists (§4)?
 6. Does it have a sane place to go when the layout stacks on narrow
-   screens, and does `.board-content` still render first?
+   screens, and does it still land in the Notes Dump → Scratchboards →
+   goal lists order?
 7. Run `node --check` on the extracted `<script type="module">` body and
    a div/span/button open-close tag count before calling it done — this
    has caught real mistakes in past updates.

@@ -311,10 +311,11 @@ header {
   .goals-columns-week .goals-col { overflow-x: visible; }
   .app-shell { flex-direction: column; }
   .scratch-sidebar-col { max-width: none; min-width: 0; width: 100%; flex: 1 1 auto; }
-  /* The board itself (Day/Week/Matrix) is the primary content — when the
-     two panes stack, it should be the first thing you see, not buried
-     below the Scratchboard sidebar just because that's its source order. */
-  .board-content { order: -1; }
+  /* On mobile the order is Notes Dump, then Scratchboards, then the goal
+     lists — .scratch-sidebar-col already renders in that order (Notes
+     Dump card above the Scratchboards panel), and since it comes before
+     .board-content in the HTML, no `order` override is needed here at
+     all: source order already matches what we want on a stacked layout. */
 }
 .board-content.wide { max-width: none; }
 /* Matrix view renders the Completed panel inline, right under the matrix
@@ -557,6 +558,7 @@ header {
 .notes-lines { display: flex; flex-direction: column; gap: .4rem; }
 .note-line { display: flex; align-items: flex-start; gap: .3rem; transition: opacity .15s; }
 .note-line.dragging { opacity: .35; }
+.note-line.drag-over { outline: 2px dashed var(--gold); outline-offset: 2px; border-radius: 8px; }
 .note-drag-handle { cursor: grab; color: var(--muted); font-size: .85rem; padding: .35rem .1rem 0 0; flex-shrink: 0; user-select: none; }
 .note-drag-handle:hover { color: var(--gold); }
 .scratch-board { transition: outline .12s, background .12s; }
@@ -1594,25 +1596,67 @@ window.onNoteLineDragEnd = function(e) {
   if (row) row.classList.remove('dragging');
 };
 
-// Dropping a note line onto another board's line list moves it there.
+// Dropping a note line onto empty space in a board's line list moves it
+// there (to the end) — or, within its own board, just moves it to the
+// end. Dropping directly onto another line instead (see
+// onNoteLineDragOver/Drop below) reorders it to that exact position;
+// those handlers stopPropagation so this one only fires for drops that
+// land in genuinely empty space, not on top of another line.
 window.onBoardDragOver = function(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); };
 window.onBoardDragLeave = function(e) { e.currentTarget.classList.remove('drag-over'); };
 window.onBoardDrop = function(e, targetBoardId) {
   e.preventDefault();
   e.currentTarget.classList.remove('drag-over');
   const drag = parseNoteDrag(e.dataTransfer.getData('text/plain'));
-  if (!drag || drag.boardId === targetBoardId) return;
+  if (!drag) return;
   const source = findBoard(drag.boardId);
   const target = findBoard(targetBoardId);
   if (!source || !target) return;
   const idx = source.lines.findIndex(l => l.id === drag.lineId);
   if (idx === -1) return;
   const [line] = source.lines.splice(idx, 1);
-  if (!source.lines.length) source.lines.push({ id: genId('l'), text: '', converted: false });
-  target.lines.push(line);
+  if (drag.boardId === targetBoardId) {
+    target.lines.push(line);
+  } else {
+    if (!source.lines.length) source.lines.push({ id: genId('l'), text: '', converted: false });
+    target.lines.push(line);
+  }
   render();
   scheduleNotesSave();
-  showToast(`Moved to "${target.title || 'Untitled Board'}"`);
+  if (drag.boardId !== targetBoardId) showToast(`Moved to "${target.title || 'Untitled Board'}"`);
+};
+
+// Dropping a note line directly onto another line — within the same
+// board, this reorders it to sit exactly there; dragged in from a
+// different board, it lands at that position instead of just appending to
+// the end. stopPropagation so the board-level onBoardDrop above (which
+// only knows "append to end") doesn't also fire for the same drop.
+window.onNoteLineDragOver = function(e) {
+  e.preventDefault(); e.stopPropagation();
+  e.currentTarget.classList.add('drag-over');
+};
+window.onNoteLineDragLeave = function(e) {
+  e.stopPropagation();
+  e.currentTarget.classList.remove('drag-over');
+};
+window.onNoteLineDrop = function(e, boardId, targetLineId) {
+  e.preventDefault(); e.stopPropagation();
+  e.currentTarget.classList.remove('drag-over');
+  const drag = parseNoteDrag(e.dataTransfer.getData('text/plain'));
+  if (!drag || drag.lineId === targetLineId) return;
+  const source = findBoard(drag.boardId);
+  const target = findBoard(boardId);
+  if (!source || !target) return;
+  const idx = source.lines.findIndex(l => l.id === drag.lineId);
+  if (idx === -1) return;
+  const [line] = source.lines.splice(idx, 1);
+  let targetIdx = target.lines.findIndex(l => l.id === targetLineId);
+  if (targetIdx === -1) targetIdx = target.lines.length;
+  target.lines.splice(targetIdx, 0, line);
+  if (drag.boardId !== boardId && !source.lines.length) source.lines.push({ id: genId('l'), text: '', converted: false });
+  render();
+  scheduleNotesSave();
+  if (drag.boardId !== boardId) showToast(`Moved to "${target.title || 'Untitled Board'}"`);
 };
 
 // ── GOALS ─────────────────────────────────────────────────
@@ -2560,11 +2604,13 @@ function noteLineHTML(boardId, l) {
   // check a line off as a quick personal checklist without ever touching
   // the convert-to-goal flow.
   return `
-    <div class="note-line ${l.converted ? 'converted' : ''} ${l.checked ? 'checked' : ''}">
+    <div class="note-line ${l.converted ? 'converted' : ''} ${l.checked ? 'checked' : ''}"
+         ondragover="onNoteLineDragOver(event)" ondragleave="onNoteLineDragLeave(event)"
+         ondrop="onNoteLineDrop(event,'${boardId}','${l.id}')">
       <button class="note-line-check ${l.checked ? 'checked' : ''}" id="ncheck-${l.id}" onclick="toggleNoteLineChecked('${boardId}','${l.id}')" title="${l.checked ? 'Mark as not done' : 'Mark as done'}">${l.checked ? '✓' : ''}</button>
       <span class="note-drag-handle" draggable="true"
             ondragstart="onNoteLineDragStart(event,'${boardId}','${l.id}')" ondragend="onNoteLineDragEnd(event)"
-            title="Drag onto another board, or onto a goal slot / quadrant to convert it there">⠿</span>
+            title="Drag to reorder within this board, onto another board to move it, or onto a goal slot / quadrant to convert it there">⠿</span>
       <textarea id="note-${l.id}" rows="1" placeholder="Type a note… (Shift+Enter for a new line within it)"
                 oninput="autoGrowNoteLine(this); onNoteLineInput('${boardId}','${l.id}', this.value)"
                 onkeydown="onNoteLineKeydown(event,'${boardId}','${l.id}')">${esc(l.text)}</textarea>
